@@ -1,0 +1,73 @@
+@page "/admin/templates"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IEmailTemplateService TemplateService
+@inject ISnackbar Snackbar
+
+<PageTitle>Mailvorlagen</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Mailvorlagen</MudText>
+            <MudText Typo="Typo.body1">Platzhalter: <code>{{Name}}</code>, <code>{{Kursname}}</code>, <code>{{Bad}}</code>, <code>{{Wochentag}}</code>, <code>{{Uhrzeit}}</code>, <code>{{Turnus}}</code></MudText>
+        </div>
+    </div>
+
+    @if (_templates.Count == 0)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        @foreach (var template in _templates)
+        {
+            <MudPaper Class="pa-4 mb-4" Elevation="0">
+                <MudText Typo="Typo.h6">@template.DisplayName</MudText>
+                <MudText Typo="Typo.body2">@template.Description</MudText>
+                <MudTextField @bind-Value="template.SubjectTemplate" Label="Betreff" Class="mt-3" />
+                <MudTextField @bind-Value="template.BodyTemplate" Label="Inhalt" Lines="8" Class="mt-3" />
+                <MudSwitch T="bool" @bind-Value="template.IsActive" Color="Color.Primary" Class="mt-3">Vorlage aktiv</MudSwitch>
+                <div class="inline-actions" style="margin-top:1rem;">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(template))">Speichern</MudButton>
+                </div>
+            </MudPaper>
+        }
+    }
+</section>
+
+@code {
+    private readonly List<EmailTemplateModel> _templates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var templates = await TemplateService.GetTemplatesAsync();
+        _templates.Clear();
+        _templates.AddRange(templates.Select(x => new EmailTemplateModel
+        {
+            Id = x.Id,
+            Key = x.Key,
+            DisplayName = x.DisplayName,
+            Description = x.Description,
+            SubjectTemplate = x.SubjectTemplate,
+            BodyTemplate = x.BodyTemplate,
+            IsActive = x.IsActive
+        }));
+    }
+
+    private async Task SaveAsync(EmailTemplateModel template)
+    {
+        await TemplateService.SaveAsync(new EmailTemplateEditDto(template.Id, template.Key, template.DisplayName, template.Description, template.SubjectTemplate, template.BodyTemplate, template.IsActive));
+        Snackbar.Add("Vorlage gespeichert.", Severity.Success);
+    }
+
+    private sealed class EmailTemplateModel
+    {
+        public Guid Id { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string SubjectTemplate { get; set; } = string.Empty;
+        public string BodyTemplate { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+    }
+}

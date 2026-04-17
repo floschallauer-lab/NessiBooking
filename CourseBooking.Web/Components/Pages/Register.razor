@@ -1,0 +1,271 @@
+@page "/register"
+@inject CourseBooking.Application.Abstractions.IPublicCatalogService CatalogService
+@inject CourseBooking.Application.Abstractions.IRegistrationService RegistrationService
+@inject FluentValidation.IValidator<RegistrationCreateRequest> Validator
+@inject NavigationManager NavigationManager
+
+<PageTitle>Anmeldung</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Kursanmeldung</MudText>
+            <MudText Typo="Typo.body1">Wählen Sie mehrere Kursoptionen in Ihrer gewünschten Reihenfolge.</MudText>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_globalError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_globalError</MudAlert>
+    }
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.GuardianFullName" Label="Name Erwachsener" Error="@HasError(nameof(_model.GuardianFullName))" ErrorText="@GetError(nameof(_model.GuardianFullName))" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.ChildFullName" Label="Name des Kindes" Error="@HasError(nameof(_model.ChildFullName))" ErrorText="@GetError(nameof(_model.ChildFullName))" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudDatePicker Label="Geburtsdatum des Kindes" Date="@_birthDate" DateChanged="OnBirthDateChanged" />
+                @if (HasError(nameof(_model.ChildBirthDate)))
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.ChildBirthDate))</MudText>
+                }
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid?" Label="Optionale Turnuswahl" @bind-Value="_model.PreferredCourseCycleId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Präferenz</MudSelectItem>
+                    @foreach (var cycle in _cycles)
+                    {
+                        <MudSelectItem T="Guid?" Value="@cycle.Id">@cycle.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.AddressLine1" Label="Adresse" Error="@HasError(nameof(_model.AddressLine1))" ErrorText="@GetError(nameof(_model.AddressLine1))" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_model.PostalCode" Label="PLZ" Error="@HasError(nameof(_model.PostalCode))" ErrorText="@GetError(nameof(_model.PostalCode))" />
+            </MudItem>
+            <MudItem xs="12" md="8">
+                <MudTextField @bind-Value="_model.City" Label="Ort" Error="@HasError(nameof(_model.City))" ErrorText="@GetError(nameof(_model.City))" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.PhoneNumber" Label="Telefonnummer" Error="@HasError(nameof(_model.PhoneNumber))" ErrorText="@GetError(nameof(_model.PhoneNumber))" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.Email" Label="E-Mail" Error="@HasError(nameof(_model.Email))" ErrorText="@GetError(nameof(_model.Email))" />
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-4" />
+        <div class="page-header">
+            <div>
+                <MudText Typo="Typo.h6">Prioritätenliste</MudText>
+                <MudText Typo="Typo.body2">Mehrere Kurswünsche, eindeutig und lückenlos sortiert.</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" OnClick="AddPriority" Disabled="@(_priorities.Count >= _courseOptions.Count)">Priorität hinzufügen</MudButton>
+        </div>
+
+        @for (var i = 0; i < _priorities.Count; i++)
+        {
+            var row = _priorities[i];
+            <MudGrid Class="mb-2" @key="row.Key">
+                <MudItem xs="12" md="2">
+                    <MudTextField Value="@($"Priorität {row.PriorityOrder}")" ReadOnly="true" Label="Reihenfolge" />
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudSelect T="Guid?" Label="Kurswahl" Value="@row.CourseOfferingId" ValueChanged="@(value => SetPriorityCourse(row.Key, value))">
+                        @foreach (var option in _courseOptions)
+                        {
+                            <MudSelectItem T="Guid?" Value="@option.Id" @key="option.Id">@option.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="2" Class="d-flex align-center">
+                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => RemovePriority(row.Key))" Disabled="@(_priorities.Count == 1)">Entfernen</MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+
+        @if (HasError("Priorities"))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error">@GetError("Priorities")</MudText>
+        }
+
+        <MudDivider Class="my-4" />
+        <MudTextField @bind-Value="_model.Note" Label="Optionale Notiz" Lines="3" />
+
+        <MudCheckBox @bind-Value="_model.TermsAccepted" Color="Color.Primary">AGB akzeptiert</MudCheckBox>
+        @if (HasError(nameof(_model.TermsAccepted)))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.TermsAccepted))</MudText>
+        }
+        <MudCheckBox @bind-Value="_model.PrivacyAccepted" Color="Color.Primary">DSGVO-Hinweise akzeptiert</MudCheckBox>
+        @if (HasError(nameof(_model.PrivacyAccepted)))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.PrivacyAccepted))</MudText>
+        }
+
+        <div class="inline-actions" style="margin-top:1.5rem;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@_isSubmitting">Absenden</MudButton>
+            <MudButton Variant="Variant.Text" Href="/">Abbrechen</MudButton>
+        </div>
+    </MudPaper>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "courseId")]
+    public Guid? CourseId { get; set; }
+
+    private readonly RegistrationFormModel _model = new();
+    private readonly List<PriorityRow> _priorities = new();
+    private Dictionary<string, string> _errors = new();
+    private List<LookupItemDto> _courseOptions = new();
+    private List<LookupItemDto> _cycles = new();
+    private DateTime? _birthDate;
+    private string? _globalError;
+    private bool _isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _courseOptions = (await CatalogService.GetInternalCourseOptionsAsync()).ToList();
+        _cycles = (await CatalogService.GetCycleOptionsAsync()).ToList();
+        AddPriority();
+        if (CourseId.HasValue && _courseOptions.Any(x => x.Id == CourseId.Value))
+        {
+            _priorities[0].CourseOfferingId = CourseId.Value;
+        }
+    }
+
+    private void AddPriority()
+    {
+        _priorities.Add(new PriorityRow
+        {
+            Key = Guid.NewGuid(),
+            PriorityOrder = _priorities.Count + 1
+        });
+    }
+
+    private void RemovePriority(Guid key)
+    {
+        var index = _priorities.FindIndex(x => x.Key == key);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _priorities.RemoveAt(index);
+        NormalizePriorities();
+    }
+
+    private void SetPriorityCourse(Guid key, Guid? value)
+    {
+        var row = _priorities.FirstOrDefault(x => x.Key == key);
+        if (row is null)
+        {
+            return;
+        }
+
+        row.CourseOfferingId = value;
+    }
+
+    private void NormalizePriorities()
+    {
+        for (var i = 0; i < _priorities.Count; i++)
+        {
+            _priorities[i].PriorityOrder = i + 1;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _globalError = null;
+        _errors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        _isSubmitting = true;
+
+        try
+        {
+            if (_priorities.Any(x => !x.CourseOfferingId.HasValue))
+            {
+                _errors["Priorities"] = "Bitte wählen Sie für jede Priorität einen Kurs.";
+                return;
+            }
+
+            var request = new RegistrationCreateRequest
+            {
+                GuardianFullName = _model.GuardianFullName,
+                ChildFullName = _model.ChildFullName,
+                ChildBirthDate = _model.ChildBirthDate,
+                AddressLine1 = _model.AddressLine1,
+                PostalCode = _model.PostalCode,
+                City = _model.City,
+                PhoneNumber = _model.PhoneNumber,
+                Email = _model.Email,
+                PreferredCourseCycleId = _model.PreferredCourseCycleId,
+                TermsAccepted = _model.TermsAccepted,
+                PrivacyAccepted = _model.PrivacyAccepted,
+                Note = _model.Note,
+                Priorities = _priorities.Select(x => new RegistrationPriorityInputDto(x.CourseOfferingId!.Value, x.PriorityOrder)).ToList()
+            };
+
+            var validationResult = await Validator.ValidateAsync(request);
+            if (!validationResult.IsValid)
+            {
+                _errors = validationResult.Errors
+                    .GroupBy(x => x.PropertyName)
+                    .ToDictionary(x => x.Key, x => x.First().ErrorMessage, StringComparer.OrdinalIgnoreCase);
+                return;
+            }
+
+            var result = await RegistrationService.SubmitAsync(request);
+            NavigationManager.NavigateTo($"/registration/submitted/{result.ConfirmationNumber}");
+        }
+        catch (FluentValidation.ValidationException ex)
+        {
+            _globalError = ex.Errors.Any() ? string.Join(" ", ex.Errors.Select(x => x.ErrorMessage)) : ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _globalError = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void OnBirthDateChanged(DateTime? value)
+    {
+        _birthDate = value;
+        _model.ChildBirthDate = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    }
+
+    private bool HasError(string field) => _errors.ContainsKey(field);
+    private string GetError(string field) => _errors.TryGetValue(field, out var error) ? error : string.Empty;
+
+    private sealed class RegistrationFormModel
+    {
+        public string GuardianFullName { get; set; } = string.Empty;
+        public string ChildFullName { get; set; } = string.Empty;
+        public DateOnly? ChildBirthDate { get; set; }
+        public string AddressLine1 { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public Guid? PreferredCourseCycleId { get; set; }
+        public bool TermsAccepted { get; set; }
+        public bool PrivacyAccepted { get; set; }
+        public string? Note { get; set; }
+    }
+
+    private sealed class PriorityRow
+    {
+        public Guid Key { get; set; }
+        public int PriorityOrder { get; set; }
+        public Guid? CourseOfferingId { get; set; }
+    }
+}

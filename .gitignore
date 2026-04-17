@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+.idea/
+logs/
+CourseBooking.Web/App_Data/
+CourseBooking.Web/Data/app.db

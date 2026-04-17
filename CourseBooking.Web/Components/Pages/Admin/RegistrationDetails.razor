@@ -1,0 +1,167 @@
+@page "/admin/registrations/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminRegistrationService RegistrationService
+@inject CourseBooking.Application.Abstractions.IRegistrationAssignmentService AssignmentService
+@inject CourseBooking.Application.Abstractions.IPublicCatalogService CatalogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Anmeldung</PageTitle>
+
+@if (_detail is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <section class="page-section">
+        <div class="page-header">
+            <div>
+                <MudText Typo="Typo.h4">Anmeldung von @_detail.GuardianName</MudText>
+                <MudText Typo="Typo.body1">@_detail.ChildName · @_detail.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudText>
+            </div>
+            <div class="status-stack">
+                <StatusBadge RegistrationState="@_detail.Status" />
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Stammdaten</MudText>
+                <div style="display:grid;gap:.5rem;">
+                    <MudText Typo="Typo.body2">Kind: @_detail.ChildName (@_detail.ChildBirthDate.ToString("dd.MM.yyyy"))</MudText>
+                    <MudText Typo="Typo.body2">Erwachsener: @_detail.GuardianName</MudText>
+                    <MudText Typo="Typo.body2">Adresse: @_detail.AddressLine1, @_detail.PostalCode @_detail.City</MudText>
+                    <MudText Typo="Typo.body2">Telefon: @_detail.PhoneNumber</MudText>
+                    <MudText Typo="Typo.body2">E-Mail: @_detail.Email</MudText>
+                    <MudText Typo="Typo.body2">Turnuspräferenz: @(_detail.PreferredCycle ?? "Keine")</MudText>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_detail.Note))
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_detail.Note</MudAlert>
+                }
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.h6">Prioritäten</MudText>
+                <div style="display:grid;gap:.5rem;">
+                    @foreach (var priority in _detail.Priorities)
+                    {
+                        <MudText Typo="Typo.body2">@priority.PriorityOrder. @priority.CourseLabel</MudText>
+                    }
+                </div>
+            </MudPaper>
+
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Disposition</MudText>
+                <MudText Typo="Typo.body2">Zugewiesen: @(_detail.AssignedCourseTitle ?? "Noch nicht zugewiesen")</MudText>
+
+                <div class="inline-actions" style="margin-top:1rem;">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AutoAssignAsync">Automatisch zuweisen</MudButton>
+                </div>
+
+                <MudSelect T="Guid?" Label="Manuell in Kurs zuweisen" @bind-Value="_manualCourseId" Class="mt-4">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                    @foreach (var item in _courseOptions)
+                    {
+                        <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Outlined" Class="mt-2" OnClick="ManualAssignAsync" Disabled="@(!_manualCourseId.HasValue)">Manuell zuweisen</MudButton>
+
+                <MudDivider Class="my-4" />
+                <MudSelect T="RegistrationStatus" Label="Status ändern" @bind-Value="_selectedStatus">
+                    @foreach (var item in Enum.GetValues<RegistrationStatus>())
+                    {
+                        <MudSelectItem T="RegistrationStatus" Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Text" Class="mt-2" OnClick="SaveStatusAsync">Status speichern</MudButton>
+
+                <MudDivider Class="my-4" />
+                <MudTextField @bind-Value="_adminNotes" Label="Interne Admin-Notizen" Lines="6" />
+                <MudButton Variant="Variant.Text" Class="mt-2" OnClick="SaveNotesAsync">Notizen speichern</MudButton>
+            </MudPaper>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_detail.AssignmentProtocol))
+        {
+            <MudPaper Class="pa-4 mt-4" Elevation="0">
+                <MudText Typo="Typo.h6">Ergebnisprotokoll</MudText>
+                <MudText Typo="Typo.body2" Style="white-space:pre-wrap;">@_detail.AssignmentProtocol</MudText>
+            </MudPaper>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private RegistrationDetailDto? _detail;
+    private IReadOnlyCollection<LookupItemDto> _courseOptions = Array.Empty<LookupItemDto>();
+    private Guid? _manualCourseId;
+    private RegistrationStatus _selectedStatus;
+    private string _adminNotes = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _courseOptions = await CatalogService.GetInternalCourseOptionsAsync();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _detail = await RegistrationService.GetRegistrationAsync(Id);
+        if (_detail is not null)
+        {
+            _selectedStatus = _detail.Status;
+            _adminNotes = _detail.AdminNotes;
+        }
+    }
+
+    private async Task AutoAssignAsync()
+    {
+        try
+        {
+            var result = await AssignmentService.AutoAssignAsync(Id);
+            Snackbar.Add(result.Summary, Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task ManualAssignAsync()
+    {
+        if (!_manualCourseId.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            await AssignmentService.ManualAssignAsync(Id, _manualCourseId.Value, "Manuelle Zuweisung im Adminbereich");
+            Snackbar.Add("Teilnehmer wurde zugewiesen.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task SaveStatusAsync()
+    {
+        await RegistrationService.UpdateStatusAsync(Id, _selectedStatus, null);
+        Snackbar.Add("Status gespeichert.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task SaveNotesAsync()
+    {
+        await RegistrationService.UpdateAdminNotesAsync(Id, _adminNotes);
+        Snackbar.Add("Notizen gespeichert.", Severity.Success);
+        await ReloadAsync();
+    }
+}

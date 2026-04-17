@@ -1,0 +1,445 @@
+@page "/admin/courses"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminCourseService CourseService
+@inject ISnackbar Snackbar
+
+<PageTitle>Kursverwaltung</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Kursverwaltung</MudText>
+            <MudText Typo="Typo.body1">Kurse filtern, bearbeiten, archivieren und nach intern oder extern sauber trennen.</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrepareNewCourse">Neuer Kurs</MudButton>
+    </div>
+
+    @if (_data is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4 mb-4 surface-card" Elevation="0">
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_searchText" Label="Suche" Placeholder="Titel, Ort oder Kurstyp" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" Label="Kursbereich" @bind-Value="_categoryFilter">
+                        <MudSelectItem T="string" Value="@AnyValue">Alle</MudSelectItem>
+                        @foreach (var item in GetDistinctValues(_data.Courses.Select(x => x.Category)))
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" Label="Kurstyp" @bind-Value="_courseTypeFilter">
+                        <MudSelectItem T="string" Value="@AnyValue">Alle</MudSelectItem>
+                        @foreach (var item in GetDistinctValues(_data.Courses.Select(x => x.CourseType)))
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" Label="Ort / Bad" @bind-Value="_venueFilter">
+                        <MudSelectItem T="string" Value="@AnyValue">Alle</MudSelectItem>
+                        @foreach (var item in GetDistinctValues(_data.Courses.Select(x => x.Venue)))
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" Label="Turnus" @bind-Value="_cycleFilter">
+                        <MudSelectItem T="string" Value="@AnyValue">Alle</MudSelectItem>
+                        @foreach (var item in GetDistinctValues(_data.Courses.Select(x => x.Cycle ?? "Kein Turnus")))
+                        {
+                            <MudSelectItem T="string" Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="CourseRegistrationMode?" Label="Buchungsart" @bind-Value="_registrationModeFilter">
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@((CourseRegistrationMode?)null)">Intern und extern</MudSelectItem>
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.Internal">Nur intern</MudSelectItem>
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.External">Nur extern</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="CourseOfferingStatus?" Label="Status" @bind-Value="_statusFilter">
+                        <MudSelectItem T="CourseOfferingStatus?" Value="@((CourseOfferingStatus?)null)">Alle</MudSelectItem>
+                        @foreach (var status in Enum.GetValues<CourseOfferingStatus>())
+                        {
+                            <MudSelectItem T="CourseOfferingStatus?" Value="@status">@GetCourseStatusLabel(status)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4" Class="d-flex align-center">
+                    <MudSwitch T="bool" @bind-Value="_onlyBookable" Color="Color.Primary">Nur intern buchbar</MudSwitch>
+                </MudItem>
+                <MudItem xs="12" md="4" Class="d-flex align-center">
+                    <MudSwitch T="bool" @bind-Value="_includeArchived" Color="Color.Default">Archivierte mitanzeigen</MudSwitch>
+                </MudItem>
+            </MudGrid>
+
+            <div class="inline-actions" style="margin-top:1rem;">
+                <MudButton Variant="Variant.Text" OnClick="ResetFilters">Filter zurücksetzen</MudButton>
+                <MudText Typo="Typo.body2">@FilteredCourses.Count() Kurse sichtbar</MudText>
+            </div>
+        </MudPaper>
+
+        <div class="admin-grid">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudTable Items="FilteredCourses" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Kurs</MudTh>
+                        <MudTh>Ort</MudTh>
+                        <MudTh>Art</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Plätze</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Kurs">
+                            <div>
+                                <div>@context.Title</div>
+                                <div class="table-subline">
+                                    <StatusBadge Text="@context.Category" />
+                                    <StatusBadge Text="@context.CourseType" />
+                                </div>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Ort">
+                            <div>@context.Venue</div>
+                            <div class="table-subline">
+                                <MudText Typo="Typo.caption">@context.DayLabel</MudText>
+                                <MudText Typo="Typo.caption">@context.PeriodLabel</MudText>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Art">
+                            <StatusBadge Text="@(context.RegistrationMode == CourseRegistrationMode.External ? "Extern" : "Intern")" />
+                        </MudTd>
+                        <MudTd DataLabel="Status"><StatusBadge CourseState="@context.Status" /></MudTd>
+                        <MudTd DataLabel="Plätze">
+                            @if (context.RegistrationMode == CourseRegistrationMode.External)
+                            {
+                                <span>Extern</span>
+                            }
+                            else
+                            {
+                                <span>@context.SeatsRemaining / @context.Capacity</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Aktionen">
+                            <div class="inline-actions">
+                                <MudButton Variant="Variant.Text" OnClick="@(() => EditCourseAsync(context.Id))">Bearbeiten</MudButton>
+                                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ArchiveAsync(context.Id))">Archivieren</MudButton>
+                                <MudButton Variant="Variant.Text" Href="@($"/admin/courses/{context.Id}/print")">Druck</MudButton>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">@(_editModel.Id.HasValue ? "Kurs bearbeiten" : "Kurs anlegen")</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">Pflegebereich für einzelne Kurse. Die Auswahlfelder bleiben explizit, damit Zuordnungen im Datenmodell eindeutig bleiben.</MudText>
+
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_editModel.Title" Label="Titel" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_editModel.Description" Label="Beschreibung" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid" Label="Kategorie" @bind-Value="_editModel.CourseCategoryId">
+                            @foreach (var item in _data.Categories)
+                            {
+                                <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid" Label="Kurstyp" @bind-Value="_editModel.CourseTypeId">
+                            @foreach (var item in _data.CourseTypes)
+                            {
+                                <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid" Label="Ort / Bad" @bind-Value="_editModel.VenueId">
+                            @foreach (var item in _data.Venues)
+                            {
+                                <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid?" Label="Turnus" @bind-Value="_editModel.CourseCycleId">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">Kein Turnus</MudSelectItem>
+                            @foreach (var item in _data.Cycles)
+                            {
+                                <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid?" Label="Altersregel" @bind-Value="_editModel.AgeRuleId">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Regel</MudSelectItem>
+                            @foreach (var item in _data.AgeRules)
+                            {
+                                <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_editModel.InstructorName" Label="Kursleitung" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudNumericField T="decimal" @bind-Value="_editModel.Price" Label="Preis" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudNumericField T="int" @bind-Value="_editModel.Capacity" Label="Kapazität" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="CourseOfferingStatus" Label="Status" @bind-Value="_editModel.Status">
+                            @foreach (var item in Enum.GetValues<CourseOfferingStatus>())
+                            {
+                                <MudSelectItem T="CourseOfferingStatus" Value="@item">@GetCourseStatusLabel(item)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudDatePicker Label="Startdatum" @bind-Date="_startDate" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudDatePicker Label="Enddatum" @bind-Date="_endDate" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="DayOfWeek" Label="Wochentag" @bind-Value="_editModel.DayOfWeek">
+                            @foreach (var day in Enum.GetValues<DayOfWeek>())
+                            {
+                                <MudSelectItem T="DayOfWeek" Value="@day">@day</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTimePicker Label="Startzeit" @bind-Time="_startTime" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTimePicker Label="Endzeit" @bind-Time="_endTime" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="CourseRegistrationMode" Label="Buchungsart" @bind-Value="_editModel.RegistrationMode">
+                            <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.Internal">Intern</MudSelectItem>
+                            <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.External">Extern</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_editModel.ExternalRegistrationUrl" Label="Externer Link" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_editModel.CustomerNotice" Label="Hinweise" Lines="2" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="_editModel.AllowWaitlistWhenFull" Color="Color.Primary">Warteliste erlauben wenn voll</MudSwitch>
+                    </MudItem>
+                </MudGrid>
+
+                <div class="inline-actions" style="margin-top:1rem;">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Speichern</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="PrepareNewCourse">Zurücksetzen</MudButton>
+                </div>
+            </MudPaper>
+        </div>
+    }
+</section>
+
+@code {
+    private const string AnyValue = "__all";
+
+    private CourseManagementDataDto? _data;
+    private CourseUpsertRequest _editModel = NewRequest();
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private TimeSpan? _startTime;
+    private TimeSpan? _endTime;
+    private string _searchText = string.Empty;
+    private string _categoryFilter = AnyValue;
+    private string _courseTypeFilter = AnyValue;
+    private string _venueFilter = AnyValue;
+    private string _cycleFilter = AnyValue;
+    private CourseRegistrationMode? _registrationModeFilter;
+    private CourseOfferingStatus? _statusFilter;
+    private bool _onlyBookable;
+    private bool _includeArchived;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private IEnumerable<CourseManagementRowDto> FilteredCourses => (_data?.Courses ?? Array.Empty<CourseManagementRowDto>())
+        .Where(MatchesCourseFilters)
+        .ToList();
+
+    private async Task ReloadAsync()
+    {
+        _data = await CourseService.GetManagementDataAsync();
+    }
+
+    private void PrepareNewCourse()
+    {
+        _editModel = NewRequest();
+        _startDate = null;
+        _endDate = null;
+        _startTime = null;
+        _endTime = null;
+    }
+
+    private void ResetFilters()
+    {
+        _searchText = string.Empty;
+        _categoryFilter = AnyValue;
+        _courseTypeFilter = AnyValue;
+        _venueFilter = AnyValue;
+        _cycleFilter = AnyValue;
+        _registrationModeFilter = null;
+        _statusFilter = null;
+        _onlyBookable = false;
+        _includeArchived = false;
+    }
+
+    private async Task EditCourseAsync(Guid id)
+    {
+        var course = await CourseService.GetCourseForEditAsync(id);
+        if (course is null)
+        {
+            return;
+        }
+
+        _editModel = course;
+        _startDate = course.StartDate?.ToDateTime(TimeOnly.MinValue);
+        _endDate = course.EndDate?.ToDateTime(TimeOnly.MinValue);
+        _startTime = course.StartTime?.ToTimeSpan();
+        _endTime = course.EndTime?.ToTimeSpan();
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            _editModel.StartDate = _startDate.HasValue ? DateOnly.FromDateTime(_startDate.Value) : null;
+            _editModel.EndDate = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : null;
+            _editModel.StartTime = _startTime.HasValue ? TimeOnly.FromTimeSpan(_startTime.Value) : null;
+            _editModel.EndTime = _endTime.HasValue ? TimeOnly.FromTimeSpan(_endTime.Value) : null;
+
+            await CourseService.SaveAsync(_editModel);
+            Snackbar.Add("Kurs gespeichert.", Severity.Success);
+            await ReloadAsync();
+            PrepareNewCourse();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task ArchiveAsync(Guid id)
+    {
+        await CourseService.ArchiveAsync(id);
+        Snackbar.Add("Kurs archiviert.", Severity.Info);
+        await ReloadAsync();
+    }
+
+    private bool MatchesCourseFilters(CourseManagementRowDto course)
+    {
+        if (!_includeArchived && course.Archived)
+        {
+            return false;
+        }
+
+        if (_statusFilter.HasValue && course.Status != _statusFilter.Value)
+        {
+            return false;
+        }
+
+        if (_registrationModeFilter.HasValue && course.RegistrationMode != _registrationModeFilter.Value)
+        {
+            return false;
+        }
+
+        if (_onlyBookable && !IsBookableInternalCourse(course))
+        {
+            return false;
+        }
+
+        if (_categoryFilter != AnyValue && !string.Equals(course.Category, _categoryFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (_courseTypeFilter != AnyValue && !string.Equals(course.CourseType, _courseTypeFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (_venueFilter != AnyValue && !string.Equals(course.Venue, _venueFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var cycleLabel = course.Cycle ?? "Kein Turnus";
+        if (_cycleFilter != AnyValue && !string.Equals(cycleLabel, _cycleFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            return true;
+        }
+
+        return $"{course.Title} {course.Venue} {course.CourseType} {course.Category}"
+            .Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBookableInternalCourse(CourseManagementRowDto course)
+    {
+        return course.RegistrationMode == CourseRegistrationMode.Internal
+            && course.Status == CourseOfferingStatus.Published
+            && course.SeatsRemaining > 0;
+    }
+
+    private static IReadOnlyCollection<string> GetDistinctValues(IEnumerable<string> values)
+    {
+        return values
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string GetCourseStatusLabel(CourseOfferingStatus status)
+    {
+        return status switch
+        {
+            CourseOfferingStatus.Published => "Veröffentlicht",
+            CourseOfferingStatus.SoldOut => "Ausgebucht",
+            CourseOfferingStatus.Draft => "Entwurf",
+            CourseOfferingStatus.Archived => "Archiviert",
+            _ => status.ToString()
+        };
+    }
+
+    private static CourseUpsertRequest NewRequest() => new()
+    {
+        DayOfWeek = DayOfWeek.Monday,
+        RegistrationMode = CourseRegistrationMode.Internal,
+        Status = CourseOfferingStatus.Published,
+        Capacity = 8,
+        AllowWaitlistWhenFull = true
+    };
+}

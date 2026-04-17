@@ -1,0 +1,6 @@
+Die Starteinstellungen von E:\repos\NessiBooking\CourseBooking.Web\Properties\launchSettings.json werden verwendet…
+Buildvorgang wird ausgeführt...
+[11:19:45 INF] HTTP GET /Account/Login responded 200 in 116.0621 ms
+[11:19:46 INF] User logged in.
+[11:19:46 INF] HTTP POST /Account/Login responded 302 in 142.4699 ms
+[11:19:46 INF] HTTP GET /admin/courses responded 200 in 690.7321 ms

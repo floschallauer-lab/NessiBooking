@@ -1,0 +1,27 @@
+@inherits LayoutComponentBase
+@layout CourseBooking.Web.Components.Layout.MainLayout
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.overline">Benutzerkonto</MudText>
+            <MudText Typo="Typo.h4">Profil und Sicherheit</MudText>
+            <MudText Typo="Typo.body2">Kontaktdaten, Zugang und Sicherheitseinstellungen werden hier gebündelt verwaltet.</MudText>
+        </div>
+    </div>
+
+    <div class="account-shell">
+        <aside class="account-side">
+            <div class="account-side-copy">
+                <MudText Typo="Typo.overline">Arbeitsbereich</MudText>
+                <MudText Typo="Typo.h6" Class="mb-2">Zugang sauber pflegen</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">Profil, Login-Daten und Schutzoptionen liegen an einer Stelle. Das bleibt bewusst knapp und gut scanbar.</MudText>
+            </div>
+            <ManageNavMenu />
+        </aside>
+
+        <div class="account-card">
+            @Body
+        </div>
+    </div>
+</section>

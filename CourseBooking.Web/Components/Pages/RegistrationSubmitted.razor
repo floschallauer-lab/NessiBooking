@@ -1,0 +1,19 @@
+@page "/registration/submitted/{ConfirmationNumber}"
+
+<PageTitle>Anmeldung gesendet</PageTitle>
+
+<section class="page-section">
+    <MudPaper Class="pa-6" Elevation="0" Style="max-width:720px;margin:0 auto;">
+        <MudText Typo="Typo.h4">Vielen Dank für Ihre Anmeldung.</MudText>
+        <MudText Typo="Typo.body1" Class="mt-2">Ihre Anfrage wurde gespeichert und eine Eingangsbestätigung wurde vorbereitet.</MudText>
+        <MudAlert Severity="Severity.Success" Class="mt-4">Bestätigungsnummer: <strong>@ConfirmationNumber</strong></MudAlert>
+        <div class="inline-actions" style="margin-top:1.5rem;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Zur Kursübersicht</MudButton>
+            <MudButton Variant="Variant.Text" Href="/register">Neue Anmeldung</MudButton>
+        </div>
+    </MudPaper>
+</section>
+
+@code {
+    [Parameter] public string ConfirmationNumber { get; set; } = string.Empty;
+}

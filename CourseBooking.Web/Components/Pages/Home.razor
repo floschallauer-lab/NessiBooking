@@ -1,0 +1,234 @@
+@page "/"
+@using System.Globalization
+@inject CourseBooking.Application.Abstractions.IPublicCatalogService CatalogService
+
+<PageTitle>NessiBooking</PageTitle>
+
+<section class="page-section">
+    <div class="hero-block">
+        <div class="hero-copy">
+            <MudText Typo="Typo.overline">Nessie-Frühjahr/Sommer 2026</MudText>
+            <MudText Typo="Typo.h3" Class="mb-4">Aktuelle Kurse übersichtlich filtern, priorisiert anfragen und intern sauber verwalten.</MudText>
+            <MudText Typo="Typo.body1">Die Kursdaten basieren auf dem aktuellen Nessie-Katalog. Interne Kurse bleiben direkt anfragbar, externe Anbieter werden klar markiert und sauber getrennt.</MudText>
+        </div>
+        <div class="hero-side">
+            <MudPaper Elevation="0" Class="pa-5 surface-card" Style="width:100%;max-width:360px;">
+                <MudText Typo="Typo.h6">Stand der App</MudText>
+                <div style="display:grid;gap:.5rem;margin:1rem 0 1.5rem;">
+                    <MudText Typo="Typo.body2">271 importierte Angebots-Slots aus dem aktuellen Nessie-Katalog</MudText>
+                    <MudText Typo="Typo.body2">Interne und externe Buchungswege klar getrennt</MudText>
+                    <MudText Typo="Typo.body2">Adminbereich für Eingänge, Status und Zuweisung</MudText>
+                </div>
+                <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Jetzt anmelden</MudButton>
+            </MudPaper>
+        </div>
+    </div>
+
+    <MudPaper Class="pa-4 mb-4 surface-card" Elevation="0">
+        <div class="page-header">
+            <div>
+                <MudText Typo="Typo.h5">Kurse finden</MudText>
+                <MudText Typo="Typo.body2">Filter nach Bereich, Ort, Turnus, Wochentag und aktuell buchbaren Angeboten.</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" OnClick="ResetFilters">Filter zurücksetzen</MudButton>
+        </div>
+
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect T="Guid?" Label="Kursbereich" @bind-Value="_categoryId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                    @foreach (var item in _catalog?.Categories ?? Array.Empty<LookupItemDto>())
+                    {
+                        <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="Guid?" Label="Kurstyp" @bind-Value="_courseTypeId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                    @foreach (var item in _catalog?.CourseTypes ?? Array.Empty<LookupItemDto>())
+                    {
+                        <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="Guid?" Label="Ort / Bad" @bind-Value="_venueId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                    @foreach (var item in _catalog?.Venues ?? Array.Empty<LookupItemDto>())
+                    {
+                        <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                    @foreach (var item in _catalog?.Cycles ?? Array.Empty<LookupItemDto>())
+                    {
+                        <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="DayOfWeek?" Label="Wochentag" @bind-Value="_dayOfWeek">
+                    <MudSelectItem T="DayOfWeek?" Value="@((DayOfWeek?)null)">Alle</MudSelectItem>
+                    @foreach (var day in Enum.GetValues<DayOfWeek>())
+                    {
+                        <MudSelectItem T="DayOfWeek?" Value="@day">@GetDayLabel(day)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex align-center">
+                <MudSelect T="CourseRegistrationMode?" Label="Buchungsart" @bind-Value="_registrationMode">
+                    <MudSelectItem T="CourseRegistrationMode?" Value="@((CourseRegistrationMode?)null)">Intern und extern</MudSelectItem>
+                    <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.Internal">Nur intern</MudSelectItem>
+                    <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.External">Nur extern</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex align-center">
+                <MudSwitch T="bool" @bind-Value="_onlyWithFreeSpots" Color="Color.Primary">Nur buchbare Kurse</MudSwitch>
+            </MudItem>
+        </MudGrid>
+
+        <div class="inline-actions" style="margin-top:1rem;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Anwenden</MudButton>
+            <MudText Typo="Typo.body2">@((_catalog?.Courses.Count ?? 0)) Kurse gefunden</MudText>
+        </div>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_catalog?.Courses.Any() == true)
+    {
+        <MudGrid>
+            @foreach (var course in _catalog.Courses)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4 mb-4 catalog-card" Elevation="0">
+                        <div class="page-header">
+                            <div>
+                                <MudText Typo="Typo.h6">@course.Title</MudText>
+                                <MudText Typo="Typo.body2">@course.Category · @course.CourseType · @course.Venue</MudText>
+                            </div>
+                            <div class="status-stack">
+                                <StatusBadge CourseState="@course.Status" />
+                                <StatusBadge Text="@(course.RegistrationMode == CourseRegistrationMode.External ? "Extern" : "Intern")" />
+                            </div>
+                        </div>
+
+                        <div class="catalog-meta">
+                            <MudText Typo="Typo.body2">@course.PeriodLabel</MudText>
+                            <MudText Typo="Typo.body2">@course.DayLabel, @course.TimeLabel</MudText>
+                            <MudText Typo="Typo.body2">Alter: @course.AgeLabel</MudText>
+                            <MudText Typo="Typo.body2">Turnus: @(course.Cycle ?? "flexibel")</MudText>
+                        </div>
+
+                        <MudDivider Class="my-3" />
+
+                        <div class="catalog-chip-row">
+                            <MudChip T="string" Color="@GetAvailabilityColor(course)" Variant="Variant.Outlined">@GetAvailabilityLabel(course)</MudChip>
+                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined">@GetPriceLabel(course)</MudChip>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(course.CustomerNotice))
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@course.CustomerNotice</MudAlert>
+                        }
+
+                        <div class="inline-actions" style="margin-top:1rem;">
+                            <MudButton Variant="Variant.Text" Href="@($"/courses/{course.Id}")">Details</MudButton>
+                            @if (course.RegistrationMode == CourseRegistrationMode.Internal)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={course.Id}")">Anmelden</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="@course.ExternalRegistrationUrl" Target="_blank">Extern buchen</MudButton>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">Für diese Filterkombination wurden keine Kurse gefunden.</MudAlert>
+    }
+</section>
+
+@code {
+    private CatalogPageDto? _catalog;
+    private Guid? _categoryId;
+    private Guid? _courseTypeId;
+    private Guid? _venueId;
+    private Guid? _cycleId;
+    private DayOfWeek? _dayOfWeek;
+    private CourseRegistrationMode? _registrationMode;
+    private bool _onlyWithFreeSpots;
+    private bool _isLoading;
+    private static readonly CultureInfo DayCulture = CultureInfo.GetCultureInfo("de-AT");
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _catalog = await CatalogService.GetCatalogAsync(new CourseFilterDto(_categoryId, _courseTypeId, _venueId, _cycleId, _dayOfWeek, _registrationMode, _onlyWithFreeSpots));
+        _isLoading = false;
+    }
+
+    private async Task ResetFilters()
+    {
+        _categoryId = null;
+        _courseTypeId = null;
+        _venueId = null;
+        _cycleId = null;
+        _dayOfWeek = null;
+        _registrationMode = null;
+        _onlyWithFreeSpots = false;
+        await LoadAsync();
+    }
+
+    private static string GetPriceLabel(CourseListItemDto course) => course.Price > 0 ? $"{course.Price:C}" : "Preis auf Anfrage";
+
+    private static string GetAvailabilityLabel(CourseListItemDto course)
+    {
+        if (course.RegistrationMode == CourseRegistrationMode.External)
+        {
+            return "Externe Anmeldung";
+        }
+
+        if (course.IsPubliclyBookable)
+        {
+            return "Intern buchbar";
+        }
+
+        if (course.AllowWaitlistWhenFull)
+        {
+            return "Nur Warteliste";
+        }
+
+        return "Derzeit nicht buchbar";
+    }
+
+    private static Color GetAvailabilityColor(CourseListItemDto course)
+    {
+        if (course.RegistrationMode == CourseRegistrationMode.External)
+        {
+            return Color.Secondary;
+        }
+
+        if (course.IsPubliclyBookable)
+        {
+            return Color.Success;
+        }
+
+        return course.AllowWaitlistWhenFull ? Color.Warning : Color.Default;
+    }
+
+    private static string GetDayLabel(DayOfWeek day) => DayCulture.DateTimeFormat.GetDayName(day);
+}

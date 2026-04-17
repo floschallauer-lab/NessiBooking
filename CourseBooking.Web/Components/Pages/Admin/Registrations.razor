@@ -1,0 +1,134 @@
+@page "/admin/registrations"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminRegistrationService RegistrationService
+
+<PageTitle>Anmeldungen</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Anmeldungen</MudText>
+            <MudText Typo="Typo.body1">Filtern, prüfen, exportieren und in die Detailansicht springen.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" Href="@BuildExportUrl()">CSV-Export</MudButton>
+    </div>
+
+    @if (_page is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="0">
+            <MudGrid>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="RegistrationStatus?" Label="Status" @bind-Value="_status">
+                        <MudSelectItem T="RegistrationStatus?" Value="@((RegistrationStatus?)null)">Alle</MudSelectItem>
+                        @foreach (var status in Enum.GetValues<RegistrationStatus>())
+                        {
+                            <MudSelectItem T="RegistrationStatus?" Value="@status">@status</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="Guid?" Label="Kurs" @bind-Value="_courseOfferingId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _page.Courses)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="Guid?" Label="Ort" @bind-Value="_venueId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _page.Venues)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _page.Cycles)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="CourseRegistrationMode?" Label="Buchungsart" @bind-Value="_registrationMode">
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@((CourseRegistrationMode?)null)">Intern und extern</MudSelectItem>
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.Internal">Nur intern</MudSelectItem>
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.External">Nur extern</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+            <div class="inline-actions" style="margin-top:1rem;">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Filter anwenden</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="ResetFilters">Zurücksetzen</MudButton>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudTable Items="_page.Registrations" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Datum</MudTh>
+                    <MudTh>Erwachsener</MudTh>
+                    <MudTh>Kind</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Zugewiesen</MudTh>
+                    <MudTh>Prioritäten</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+                    <MudTd>@context.GuardianName</MudTd>
+                    <MudTd>@context.ChildName</MudTd>
+                    <MudTd><StatusBadge RegistrationState="@context.Status" /></MudTd>
+                    <MudTd>@(context.AssignedCourse ?? "-")</MudTd>
+                    <MudTd>@context.PrioritySummary</MudTd>
+                    <MudTd><MudButton Variant="Variant.Text" Href="@($"/admin/registrations/{context.Id}")">Details</MudButton></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</section>
+
+@code {
+    private RegistrationListPageDto? _page;
+    private RegistrationStatus? _status;
+    private Guid? _courseOfferingId;
+    private Guid? _venueId;
+    private Guid? _cycleId;
+    private CourseRegistrationMode? _registrationMode;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _page = await RegistrationService.GetRegistrationsAsync(new RegistrationAdminFilter(_status, _courseOfferingId, _venueId, _cycleId, _registrationMode));
+    }
+
+    private async Task ResetFilters()
+    {
+        _status = null;
+        _courseOfferingId = null;
+        _venueId = null;
+        _cycleId = null;
+        _registrationMode = null;
+        await LoadAsync();
+    }
+
+    private string BuildExportUrl()
+    {
+        var parameters = new List<string>();
+        if (_status.HasValue) parameters.Add($"status={_status}");
+        if (_courseOfferingId.HasValue) parameters.Add($"courseOfferingId={_courseOfferingId}");
+        if (_venueId.HasValue) parameters.Add($"venueId={_venueId}");
+        if (_cycleId.HasValue) parameters.Add($"courseCycleId={_cycleId}");
+        if (_registrationMode.HasValue) parameters.Add($"registrationMode={_registrationMode}");
+        return parameters.Count == 0 ? "/admin/exports/registrations.csv" : $"/admin/exports/registrations.csv?{string.Join("&", parameters)}";
+    }
+}

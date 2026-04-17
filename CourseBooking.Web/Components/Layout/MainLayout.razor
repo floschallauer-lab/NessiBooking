@@ -1,0 +1,70 @@
+@inherits LayoutComponentBase
+
+@inject NavigationManager NavigationManager
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<a class="skip-link" href="#main-content">Zum Inhalt springen</a>
+
+<MudLayout>
+    <MudAppBar Elevation="0" Dense="true" Class="top-bar">
+        <a href="/" class="brand-lockup" aria-label="NessiBooking Startseite">
+            <span class="brand-mark">N</span>
+            <div>
+                <MudText Typo="Typo.subtitle2" Class="brand-eyebrow">Kursbuchung</MudText>
+                <MudText Typo="Typo.h6" Class="brand-title">NessiBooking</MudText>
+            </div>
+        </a>
+
+        <MudSpacer />
+
+        <nav class="top-nav">
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/">Kurse</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/register">Anmeldung</MudButton>
+
+            <AuthorizeView Roles="@RoleNames.Admin">
+                <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/admin">Admin</MudButton>
+            </AuthorizeView>
+
+            <AuthorizeView>
+                <Authorized>
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/Account/Manage">Profil</MudButton>
+                    <form method="post" action="/Account/Logout" class="logout-form">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@CurrentRelativePath" />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Inherit">Logout</MudButton>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/Account/Login">Admin-Login</MudButton>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </MudAppBar>
+
+    <MudMainContent id="main-content">
+        <div class="shell">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ein Fehler ist aufgetreten.
+    <a href="." class="reload">Neu laden</a>
+    <span class="dismiss">x</span>
+</div>
+
+@code {
+    private string CurrentRelativePath
+    {
+        get
+        {
+            var relative = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+            return string.IsNullOrWhiteSpace(relative) ? "/" : $"/{relative}";
+        }
+    }
+}

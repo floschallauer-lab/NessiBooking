@@ -1,0 +1,25 @@
+@using Microsoft.AspNetCore.Identity
+@using CourseBooking.Web.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+
+<nav class="account-nav">
+    <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All">Profil</NavLink>
+    <NavLink class="nav-link" href="Account/Manage/Email">E-Mail</NavLink>
+    <NavLink class="nav-link" href="Account/Manage/ChangePassword">Passwort</NavLink>
+    @if (hasExternalLogins)
+    {
+        <NavLink class="nav-link" href="Account/Manage/ExternalLogins">Externe Logins</NavLink>
+    }
+    <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication">Zwei-Faktor-Schutz</NavLink>
+    <NavLink class="nav-link" href="Account/Manage/PersonalData">Persönliche Daten</NavLink>
+</nav>
+
+@code {
+    private bool hasExternalLogins;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+    }
+}

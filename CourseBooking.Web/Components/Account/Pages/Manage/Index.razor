@@ -1,0 +1,151 @@
+@page "/Account/Manage"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using CourseBooking.Web.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Profil</PageTitle>
+
+@if (user is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <div class="account-intro">
+        <div>
+            <MudText Typo="Typo.h5">Profil</MudText>
+            <MudText Typo="Typo.body2" Class="mb-0">Die wichtigsten Kontaktdaten fuer den Adminzugang werden hier gepflegt.</MudText>
+        </div>
+        <div class="inline-actions">
+            <MudButton Variant="Variant.Outlined" Href="/Account/Manage/ChangePassword">Passwort pruefen</MudButton>
+            <MudButton Variant="Variant.Text" Href="/admin">Zum Adminbereich</MudButton>
+        </div>
+    </div>
+
+    <StatusMessage />
+
+    <div class="account-summary">
+        <div class="account-summary-item">
+            <MudText Typo="Typo.overline">Benutzername</MudText>
+            <MudText Typo="Typo.h6">@username</MudText>
+            <MudText Typo="Typo.body2">Technischer Login-Name fuer den lokalen Adminzugang.</MudText>
+        </div>
+        <div class="account-summary-item">
+            <MudText Typo="Typo.overline">E-Mail</MudText>
+            <MudText Typo="Typo.h6">@user.Email</MudText>
+            <MudText Typo="Typo.body2">Wird fuer Login, Benachrichtigungen und Vorlagen genutzt.</MudText>
+        </div>
+        <div class="account-summary-item">
+            <MudText Typo="Typo.overline">Telefon</MudText>
+            <MudText Typo="Typo.h6">@(string.IsNullOrWhiteSpace(Input.PhoneNumber) ? "Nicht hinterlegt" : Input.PhoneNumber)</MudText>
+            <MudText Typo="Typo.body2">Optional fuer Rueckfragen im operativen Alltag.</MudText>
+        </div>
+        <div class="account-summary-item account-note">
+            <MudText Typo="Typo.overline">Empfohlen</MudText>
+            <MudText Typo="Typo.h6">Zugang absichern</MudText>
+            <MudText Typo="Typo.body2">Nach dem Basis-Setup am besten Passwort aktualisieren und Zwei-Faktor-Schutz aktivieren.</MudText>
+            <div class="inline-actions" style="margin-top:1rem;">
+                <MudButton Variant="Variant.Outlined" Href="/Account/Manage/TwoFactorAuthentication">2FA oeffnen</MudButton>
+            </div>
+        </div>
+    </div>
+
+    <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post" class="account-form-grid">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" role="alert" />
+
+        <div class="account-form-panel">
+            <MudText Typo="Typo.h6" Class="mb-1">Kontaktdaten</MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">Nur Felder pflegen, die im Tagesgeschaeft wirklich gebraucht werden.</MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <div class="form-floating mb-3">
+                        <input type="text" value="@username" id="username" class="form-control" placeholder="Benutzername" disabled />
+                        <label for="username" class="form-label">Benutzername</label>
+                    </div>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Telefonnummer" autocomplete="tel" />
+                        <label for="Input.PhoneNumber" class="form-label">Telefonnummer</label>
+                        <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </div>
+
+        <div class="account-form-panel account-form-aside">
+            <MudText Typo="Typo.h6" Class="mb-1">Naechste Schritte</MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">Der Profilbereich bleibt bewusst schlank. Fuer alles Sicherheitsrelevante gibt es eigene Seiten.</MudText>
+
+            <div class="account-quick-grid">
+                <a class="account-quick-link" href="/Account/Manage/Email">
+                    <span>E-Mail pruefen</span>
+                    <small>Adresse und Login-Daten abstimmen</small>
+                </a>
+                <a class="account-quick-link" href="/Account/Manage/ChangePassword">
+                    <span>Passwort aendern</span>
+                    <small>Demo-Zugang gegen produktives Passwort tauschen</small>
+                </a>
+                <a class="account-quick-link" href="/Account/Manage/TwoFactorAuthentication">
+                    <span>Zwei-Faktor-Schutz</span>
+                    <small>Admins zusaetzlich absichern</small>
+                </a>
+            </div>
+        </div>
+
+        <div class="inline-actions">
+            <button type="submit" class="btn btn-primary">Profil speichern</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    private ApplicationUser user = default!;
+    private string? username;
+    private string? phoneNumber;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        username = await UserManager.GetUserNameAsync(user);
+        phoneNumber = await UserManager.GetPhoneNumberAsync(user);
+
+        Input.PhoneNumber ??= phoneNumber;
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        if (Input.PhoneNumber != phoneNumber)
+        {
+            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
+            if (!setPhoneResult.Succeeded)
+            {
+                RedirectManager.RedirectToCurrentPageWithStatus("Error: Telefonnummer konnte nicht gespeichert werden.", HttpContext);
+            }
+        }
+
+        await SignInManager.RefreshSignInAsync(user);
+        RedirectManager.RedirectToCurrentPageWithStatus("Profil erfolgreich aktualisiert.", HttpContext);
+    }
+
+    private sealed class InputModel
+    {
+        [Phone]
+        [Display(Name = "Telefonnummer")]
+        public string? PhoneNumber { get; set; }
+    }
+}

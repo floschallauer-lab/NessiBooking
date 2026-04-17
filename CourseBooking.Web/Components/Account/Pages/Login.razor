@@ -1,0 +1,126 @@
+@page "/Account/Login"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using CourseBooking.Web.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Admin-Login</PageTitle>
+
+<section class="page-section">
+    <div class="login-shell">
+        <aside class="login-poster">
+            <div>
+                <MudText Typo="Typo.overline">Adminbereich</MudText>
+                <MudText Typo="Typo.h3" Class="mt-3 mb-4">Eingänge prüfen, Kurse verwalten und Teilnehmer sauber zuweisen.</MudText>
+                <MudText Typo="Typo.body1">Der Login trennt den öffentlichen Buchungsbereich klar vom operativen Admin-Workflow. Nach dem Login steht das Dashboard direkt bereit.</MudText>
+            </div>
+
+            <div class="login-facts">
+                <div class="login-fact">Demo-Login: <strong>admin@coursebooking.local</strong></div>
+                <div class="login-fact">Passwort: <strong>Admin1234</strong></div>
+                <div class="login-fact">Für den MVP werden E-Mails lokal als Dateien protokolliert.</div>
+            </div>
+        </aside>
+
+        <div class="login-card">
+            <StatusMessage Message="@errorMessage" />
+
+            <MudText Typo="Typo.h4">Anmelden</MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">Bitte die vollständige E-Mail-Adresse verwenden. Der Adminbereich nutzt ASP.NET Core Identity mit lokalem Login.</MudText>
+
+            <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login" class="login-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" role="alert" />
+
+                <div class="form-floating">
+                    <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="admin@coursebooking.local" />
+                    <label for="Input.Email" class="form-label">E-Mail</label>
+                    <ValidationMessage For="() => Input.Email" class="text-danger" />
+                </div>
+
+                <div class="form-floating">
+                    <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Passwort" />
+                    <label for="Input.Password" class="form-label">Passwort</label>
+                    <ValidationMessage For="() => Input.Password" class="text-danger" />
+                </div>
+
+                <div class="checkbox">
+                    <label class="form-label">
+                        <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" />
+                        Angemeldet bleiben
+                    </label>
+                </div>
+
+                <button type="submit" class="w-100 btn btn-lg btn-primary">Login öffnen</button>
+
+                <MudText Typo="Typo.caption" Class="mt-3">Kein externer Provider konfiguriert. Für den MVP ist nur der lokale Admin-Login aktiv.</MudText>
+            </EditForm>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string? errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task LoginUser()
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo(
+                "Account/LoginWith2fa",
+                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            errorMessage = "Ungültiger Login-Versuch. Bitte E-Mail und Passwort prüfen.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "Angemeldet bleiben")]
+        public bool RememberMe { get; set; }
+    }
+}

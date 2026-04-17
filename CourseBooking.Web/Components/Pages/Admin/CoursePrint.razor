@@ -1,0 +1,57 @@
+@page "/admin/courses/{CourseOfferingId:guid}/print"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminRegistrationService RegistrationService
+@inject CourseBooking.Application.Abstractions.IPublicCatalogService CatalogService
+
+<PageTitle>Druckansicht</PageTitle>
+
+@if (_course is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <section class="page-section">
+        <div class="page-header">
+            <div>
+                <MudText Typo="Typo.h4">Teilnehmerliste</MudText>
+                <MudText Typo="Typo.body1">@_course.Title · @_course.DayLabel · @_course.TimeLabel</MudText>
+            </div>
+            <div class="inline-actions">
+                <MudButton Variant="Variant.Outlined" Href="@($"/admin/exports/courses/{CourseOfferingId}/participants.csv")">CSV</MudButton>
+            </div>
+        </div>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudTable Items="_participants" Dense="true">
+                <HeaderContent>
+                    <MudTh>Kind</MudTh>
+                    <MudTh>Geburtsdatum</MudTh>
+                    <MudTh>Erwachsener</MudTh>
+                    <MudTh>E-Mail</MudTh>
+                    <MudTh>Telefon</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.ChildName</MudTd>
+                    <MudTd>@context.BirthDate.ToString("dd.MM.yyyy")</MudTd>
+                    <MudTd>@context.GuardianName</MudTd>
+                    <MudTd>@context.Email</MudTd>
+                    <MudTd>@context.PhoneNumber</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid CourseOfferingId { get; set; }
+
+    private CourseDetailDto? _course;
+    private IReadOnlyCollection<CourseParticipantDto> _participants = Array.Empty<CourseParticipantDto>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _course = await CatalogService.GetCourseAsync(CourseOfferingId);
+        _participants = await RegistrationService.GetParticipantsAsync(CourseOfferingId);
+    }
+}

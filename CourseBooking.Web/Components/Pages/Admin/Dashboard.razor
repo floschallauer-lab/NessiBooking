@@ -1,0 +1,316 @@
+@page "/admin"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@using System.Globalization
+@inject CourseBooking.Application.Abstractions.IAdminDashboardService DashboardService
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Dashboard</MudText>
+            <MudText Typo="Typo.body1">Kennzahlen, Filter und grafische Übersicht für den laufenden Buchungsbetrieb.</MudText>
+        </div>
+        <div class="inline-actions">
+            <MudButton Variant="Variant.Outlined" Href="/admin/courses">Kurse</MudButton>
+            <MudButton Variant="Variant.Outlined" Href="/admin/registrations">Anmeldungen</MudButton>
+            <MudButton Variant="Variant.Outlined" Href="/admin/templates">Mailvorlagen</MudButton>
+        </div>
+    </div>
+
+    @if (_summary is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4 mb-4 surface-card" Elevation="0">
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid?" Label="Bereich" @bind-Value="_categoryId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _summary.Categories)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid?" Label="Kurstyp" @bind-Value="_courseTypeId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _summary.CourseTypes)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid?" Label="Ort / Bad" @bind-Value="_venueId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _summary.Venues)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        @foreach (var item in _summary.Cycles)
+                        {
+                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="CourseRegistrationMode?" Label="Buchungsart" @bind-Value="_registrationMode">
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@((CourseRegistrationMode?)null)">Intern und extern</MudSelectItem>
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.Internal">Nur intern</MudSelectItem>
+                        <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.External">Nur extern</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="RegistrationStatus?" Label="Anmeldestatus" @bind-Value="_registrationStatus">
+                        <MudSelectItem T="RegistrationStatus?" Value="@((RegistrationStatus?)null)">Alle</MudSelectItem>
+                        @foreach (var status in Enum.GetValues<RegistrationStatus>())
+                        {
+                            <MudSelectItem T="RegistrationStatus?" Value="@status">@GetRegistrationStatusLabel(status)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <div class="inline-actions" style="margin-top:1rem;">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Filter anwenden</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="ResetFilters">Zurücksetzen</MudButton>
+            </div>
+        </MudPaper>
+
+        <div class="stats-grid stats-grid-wide">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Offene Anmeldungen</MudText>
+                <MudText Typo="Typo.h3">@_summary.OpenRegistrations</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Bestätigt</MudText>
+                <MudText Typo="Typo.h3">@_summary.ConfirmedRegistrations</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Warteliste</MudText>
+                <MudText Typo="Typo.h3">@_summary.WaitlistEntries</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Interne Kurse</MudText>
+                <MudText Typo="Typo.h3">@_summary.InternalCourses</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Externe Kurse</MudText>
+                <MudText Typo="Typo.h3">@_summary.ExternalCourses</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Intern buchbar</MudText>
+                <MudText Typo="Typo.h3">@_summary.BookableInternalCourses</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Ausgebuchte interne Kurse</MudText>
+                <MudText Typo="Typo.h3">@_summary.SoldOutCourses</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Wenig Restplätze</MudText>
+                <MudText Typo="Typo.h3">@_summary.CoursesWithLowAvailability</MudText>
+            </MudPaper>
+        </div>
+
+        <div class="dashboard-grid">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Anmeldestatus</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">Verteilung der aktuell gefilterten Anmeldungen.</MudText>
+                <div class="dashboard-bars">
+                    @foreach (var row in _summary.RegistrationStatusDistribution)
+                    {
+                        <div class="dashboard-bar-row">
+                            <div class="dashboard-bar-head">
+                                <span>@row.Label</span>
+                                <strong>@row.Value</strong>
+                            </div>
+                            <div class="dashboard-bar-track">
+                                <div class="dashboard-bar-fill dashboard-tone-primary" style="@BuildBarStyle(row)"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Kursmix</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">Intern und extern sauber getrennt.</MudText>
+                <div class="dashboard-bars">
+                    @foreach (var row in _summary.ModeDistribution)
+                    {
+                        <div class="dashboard-bar-row">
+                            <div class="dashboard-bar-head">
+                                <span>@row.Label</span>
+                                <strong>@row.Value</strong>
+                            </div>
+                            <div class="dashboard-bar-track">
+                                <div class="dashboard-bar-fill dashboard-tone-accent" style="@BuildBarStyle(row)"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Nach Ort / Bad</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">Die größten Standorte im aktuellen Filter.</MudText>
+                <div class="dashboard-bars">
+                    @foreach (var row in _summary.VenueDistribution)
+                    {
+                        <div class="dashboard-bar-row">
+                            <div class="dashboard-bar-head">
+                                <span>@row.Label</span>
+                                <strong>@row.Value</strong>
+                            </div>
+                            <div class="dashboard-bar-track">
+                                <div class="dashboard-bar-fill dashboard-tone-secondary" style="@BuildBarStyle(row)"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Nach Kursbereich</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">Welche Bereiche aktuell das Angebot prägen.</MudText>
+                <div class="dashboard-bars">
+                    @foreach (var row in _summary.CategoryDistribution)
+                    {
+                        <div class="dashboard-bar-row">
+                            <div class="dashboard-bar-head">
+                                <span>@row.Label</span>
+                                <strong>@row.Value</strong>
+                            </div>
+                            <div class="dashboard-bar-track">
+                                <div class="dashboard-bar-fill dashboard-tone-muted" style="@BuildBarStyle(row)"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+        </div>
+
+        <div class="dashboard-grid dashboard-grid-lists">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <div class="page-header">
+                    <div>
+                        <MudText Typo="Typo.h6">Kurse mit Handlungsbedarf</MudText>
+                        <MudText Typo="Typo.body2">Interne Kurse mit Warteliste, knappen Plätzen oder offenen Vorgängen.</MudText>
+                    </div>
+                    <MudButton Variant="Variant.Text" Href="/admin/courses">Alle Kurse</MudButton>
+                </div>
+                <MudTable Items="_summary.CoursesNeedingAttention" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Kurs</MudTh>
+                        <MudTh>Ort</MudTh>
+                        <MudTh>Plätze</MudTh>
+                        <MudTh>Offen</MudTh>
+                        <MudTh>Warteliste</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Kurs">
+                            <div>
+                                <div>@context.Title</div>
+                                <div class="table-subline">
+                                    @if (context.IsSoldOut)
+                                    {
+                                        <StatusBadge Text="Ausgebucht" />
+                                    }
+                                    else if (context.IsLowAvailability)
+                                    {
+                                        <StatusBadge Text="Knapp" />
+                                    }
+                                </div>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Ort">@context.Venue</MudTd>
+                        <MudTd DataLabel="Plätze">@context.SeatsRemaining / @context.Capacity</MudTd>
+                        <MudTd DataLabel="Offen">@context.OpenRegistrations</MudTd>
+                        <MudTd DataLabel="Warteliste">@context.WaitlistCount</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <div class="page-header">
+                    <div>
+                        <MudText Typo="Typo.h6">Neueste Anmeldungen</MudText>
+                        <MudText Typo="Typo.body2">Die letzten Vorgänge im aktuellen Filter.</MudText>
+                    </div>
+                    <MudButton Variant="Variant.Text" Href="/admin/registrations">Zur Liste</MudButton>
+                </div>
+                <MudTable Items="_summary.RecentRegistrations" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Eingang</MudTh>
+                        <MudTh>Erwachsener</MudTh>
+                        <MudTh>Kind</MudTh>
+                        <MudTh>Status</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Eingang">@context.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+                        <MudTd DataLabel="Erwachsener">@context.GuardianName</MudTd>
+                        <MudTd DataLabel="Kind">@context.ChildName</MudTd>
+                        <MudTd DataLabel="Status"><StatusBadge RegistrationState="@context.Status" /></MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </div>
+    }
+</section>
+
+@code {
+    private DashboardSummaryDto? _summary;
+    private Guid? _categoryId;
+    private Guid? _courseTypeId;
+    private Guid? _venueId;
+    private Guid? _cycleId;
+    private CourseRegistrationMode? _registrationMode;
+    private RegistrationStatus? _registrationStatus;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _summary = await DashboardService.GetSummaryAsync(
+            new AdminDashboardFilter(_categoryId, _courseTypeId, _venueId, _cycleId, _registrationMode, _registrationStatus));
+    }
+
+    private async Task ResetFilters()
+    {
+        _categoryId = null;
+        _courseTypeId = null;
+        _venueId = null;
+        _cycleId = null;
+        _registrationMode = null;
+        _registrationStatus = null;
+        await LoadAsync();
+    }
+
+    private static string BuildBarStyle(DashboardBreakdownRowDto row)
+    {
+        var percentage = row.Total <= 0 ? 0 : Math.Clamp((row.Value * 100d) / row.Total, 0, 100);
+        return $"width:{percentage.ToString("F1", CultureInfo.InvariantCulture)}%";
+    }
+
+    private static string GetRegistrationStatusLabel(RegistrationStatus status)
+    {
+        return status switch
+        {
+            RegistrationStatus.Received => "Eingegangen",
+            RegistrationStatus.Reserved => "Vorgemerkt",
+            RegistrationStatus.Confirmed => "Bestätigt",
+            RegistrationStatus.Waitlisted => "Warteliste",
+            RegistrationStatus.Rejected => "Abgelehnt",
+            _ => status.ToString()
+        };
+    }
+}
