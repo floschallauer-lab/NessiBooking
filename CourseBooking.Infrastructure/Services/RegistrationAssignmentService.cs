@@ -54,6 +54,18 @@ internal sealed class RegistrationAssignmentService(
                 continue;
             }
 
+            if (course.CourseCategory?.IsActive != true || course.CourseType?.IsActive != true || course.Venue?.IsActive != true)
+            {
+                protocol.Add("  - Übersprungen: zugehörige Stammdaten sind nicht mehr aktiv.");
+                continue;
+            }
+
+            if (course.CourseCycleId.HasValue && course.CourseCycle?.IsActive != true)
+            {
+                protocol.Add("  - Übersprungen: der Turnus ist nicht mehr aktiv.");
+                continue;
+            }
+
             if (!CourseRuleEvaluator.MatchesAgeRule(registration.ChildParticipant!.BirthDate, course.StartDate, course.AgeRule, out var ageMessage))
             {
                 protocol.Add($"  - Übersprungen: {ageMessage}");
@@ -98,7 +110,10 @@ internal sealed class RegistrationAssignmentService(
                 course.Status = occupancy + 1 >= course.Capacity ? CourseOfferingStatus.SoldOut : CourseOfferingStatus.Published;
                 course.UpdatedUtc = DateTime.UtcNow;
 
-                await dbContext.SaveChangesAsync(cancellationToken);
+                await PersistenceGuard.SaveChangesAsync(
+                    dbContext,
+                    "Die automatische Zuweisung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+                    cancellationToken);
                 await auditService.WriteAsync("RegistrationAutoAssigned", nameof(Registration), registration.Id.ToString(), registration.AssignmentProtocol, cancellationToken);
                 await emailSenderService.SendTemplatedEmailAsync(
                     EmailTemplateKeys.RegistrationAccepted,
@@ -143,7 +158,10 @@ internal sealed class RegistrationAssignmentService(
         registration.LastStatusChangedAtUtc = DateTime.UtcNow;
         registration.AssignmentProtocol = string.Join(Environment.NewLine, protocol.Append($"Warteliste fuer {waitlistCandidate.Title}."));
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Warteliste konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("RegistrationWaitlisted", nameof(Registration), registration.Id.ToString(), registration.AssignmentProtocol, cancellationToken);
         await emailSenderService.SendTemplatedEmailAsync(
             EmailTemplateKeys.RegistrationWaitlisted,
@@ -158,6 +176,7 @@ internal sealed class RegistrationAssignmentService(
     {
         var registration = await LoadRegistrationAsync(registrationId, cancellationToken);
         var course = await dbContext.CourseOfferings
+            .Include(x => x.CourseCategory)
             .Include(x => x.CourseType)
             .Include(x => x.Venue)
             .Include(x => x.CourseCycle)
@@ -168,6 +187,21 @@ internal sealed class RegistrationAssignmentService(
         if (course.RegistrationMode != CourseRegistrationMode.Internal)
         {
             throw new InvalidOperationException("Externe Kurse können nicht intern zugewiesen werden.");
+        }
+
+        if (course.Status is CourseOfferingStatus.Draft or CourseOfferingStatus.Archived)
+        {
+            throw new InvalidOperationException("Dieser Kurs ist derzeit nicht für eine Zuweisung freigegeben.");
+        }
+
+        if (course.CourseCategory?.IsActive != true || course.CourseType?.IsActive != true || course.Venue?.IsActive != true)
+        {
+            throw new InvalidOperationException("Dieser Kurs kann aktuell nicht zugewiesen werden, weil zugehörige Stammdaten inaktiv sind.");
+        }
+
+        if (course.CourseCycleId.HasValue && course.CourseCycle?.IsActive != true)
+        {
+            throw new InvalidOperationException("Dieser Kurs kann aktuell nicht zugewiesen werden, weil der zugehörige Turnus inaktiv ist.");
         }
 
         if (!CourseRuleEvaluator.MatchesAgeRule(registration.ChildParticipant!.BirthDate, course.StartDate, course.AgeRule, out var ageMessage))
@@ -197,7 +231,10 @@ internal sealed class RegistrationAssignmentService(
         course.Status = occupancy + 1 >= course.Capacity ? CourseOfferingStatus.SoldOut : CourseOfferingStatus.Published;
         course.UpdatedUtc = DateTime.UtcNow;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die manuelle Zuweisung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("RegistrationManualAssigned", nameof(Registration), registration.Id.ToString(), $"Kurs: {course.Title}", cancellationToken);
         await emailSenderService.SendTemplatedEmailAsync(
             EmailTemplateKeys.RegistrationAccepted,
@@ -214,6 +251,9 @@ internal sealed class RegistrationAssignmentService(
             .Include(x => x.ChildParticipant)
             .Include(x => x.AssignedCourseOffering)
             .Include(x => x.WaitlistEntries)
+            .Include(x => x.Priorities)
+                .ThenInclude(x => x.CourseOffering!)
+                    .ThenInclude(x => x.CourseCategory)
             .Include(x => x.Priorities)
                 .ThenInclude(x => x.CourseOffering!)
                     .ThenInclude(x => x.CourseType)

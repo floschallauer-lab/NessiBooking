@@ -66,30 +66,32 @@ internal sealed class AdminCourseService(
             rows,
             await dbContext.CourseCategories
                 .AsNoTracking()
-                .OrderBy(x => x.SortOrder)
+                .OrderByDescending(x => x.IsActive)
+                .ThenBy(x => x.SortOrder)
                 .ThenBy(x => x.Name)
-                .Select(x => new LookupItemDto(x.Id, x.Name, null))
+                .Select(x => new LookupItemDto(x.Id, x.Name, x.IsActive ? null : "Inaktiv"))
                 .ToListAsync(cancellationToken),
             await LoadCanonicalCourseTypesAsync(cancellationToken),
             await LoadCanonicalVenuesAsync(cancellationToken),
             await dbContext.CourseCycles
                 .AsNoTracking()
-                .OrderBy(x => x.SortOrder)
+                .OrderByDescending(x => x.IsActive)
+                .ThenBy(x => x.SortOrder)
                 .ThenBy(x => x.Name)
-                .Select(x => new LookupItemDto(x.Id, x.Name, null))
+                .Select(x => new LookupItemDto(x.Id, x.Name, x.IsActive ? null : "Inaktiv"))
                 .ToListAsync(cancellationToken),
             await dbContext.AgeRules
                 .AsNoTracking()
                 .OrderByDescending(x => x.IsActive)
                 .ThenBy(x => x.Name)
-                .Select(x => new LookupItemDto(x.Id, x.IsActive ? x.Name : $"{x.Name} (inaktiv)", null))
+                .Select(x => new LookupItemDto(x.Id, x.Name, x.IsActive ? null : "Inaktiv"))
                 .ToListAsync(cancellationToken),
             await dbContext.CourseInstructors
                 .AsNoTracking()
                 .OrderByDescending(x => x.IsActive)
                 .ThenBy(x => x.SortOrder)
                 .ThenBy(x => x.FullName)
-                .Select(x => new LookupItemDto(x.Id, x.IsActive ? x.FullName : $"{x.FullName} (inaktiv)", null))
+                .Select(x => new LookupItemDto(x.Id, x.FullName, x.IsActive ? null : "Inaktiv"))
                 .ToListAsync(cancellationToken),
             summary);
     }
@@ -159,7 +161,8 @@ internal sealed class AdminCourseService(
             .Where(x => x.Id == request.CourseTypeId)
             .Select(x => new
             {
-                x.CourseCategoryId
+                x.CourseCategoryId,
+                x.IsActive
             })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new ValidationException("Die gewaehlte Unterkategorie wurde nicht gefunden.");
@@ -169,32 +172,37 @@ internal sealed class AdminCourseService(
             throw new ValidationException("Die gewaehlte Unterkategorie gehoert nicht zum ausgewaehlten Bereich.");
         }
 
-        if (!await dbContext.CourseCategories.AnyAsync(x => x.Id == request.CourseCategoryId, cancellationToken))
+        if (!selectedCourseType.IsActive)
         {
-            throw new ValidationException("Der gewaehlte Bereich wurde nicht gefunden.");
+            throw new ValidationException("Die gewaehlte Unterkategorie ist inaktiv. Bitte waehlen Sie eine aktive Unterkategorie aus.");
         }
 
-        if (!await dbContext.Venues.AnyAsync(x => x.Id == request.VenueId, cancellationToken))
+        if (!await dbContext.CourseCategories.AnyAsync(x => x.Id == request.CourseCategoryId && x.IsActive, cancellationToken))
         {
-            throw new ValidationException("Der gewaehlte Ort wurde nicht gefunden.");
+            throw new ValidationException("Der gewaehlte Bereich ist nicht mehr aktiv.");
+        }
+
+        if (!await dbContext.Venues.AnyAsync(x => x.Id == request.VenueId && x.IsActive, cancellationToken))
+        {
+            throw new ValidationException("Der gewaehlte Ort ist nicht mehr aktiv.");
         }
 
         if (request.CourseCycleId.HasValue &&
-            !await dbContext.CourseCycles.AnyAsync(x => x.Id == request.CourseCycleId.Value, cancellationToken))
+            !await dbContext.CourseCycles.AnyAsync(x => x.Id == request.CourseCycleId.Value && x.IsActive, cancellationToken))
         {
-            throw new ValidationException("Der gewaehlte Turnus wurde nicht gefunden.");
+            throw new ValidationException("Der gewaehlte Turnus ist nicht mehr aktiv.");
         }
 
         if (request.AgeRuleId.HasValue &&
-            !await dbContext.AgeRules.AnyAsync(x => x.Id == request.AgeRuleId.Value, cancellationToken))
+            !await dbContext.AgeRules.AnyAsync(x => x.Id == request.AgeRuleId.Value && x.IsActive, cancellationToken))
         {
-            throw new ValidationException("Die gewaehlte Altersregel wurde nicht gefunden.");
+            throw new ValidationException("Die gewaehlte Altersregel ist nicht mehr aktiv.");
         }
 
         if (request.CourseInstructorId.HasValue &&
-            !await dbContext.CourseInstructors.AnyAsync(x => x.Id == request.CourseInstructorId.Value, cancellationToken))
+            !await dbContext.CourseInstructors.AnyAsync(x => x.Id == request.CourseInstructorId.Value && x.IsActive, cancellationToken))
         {
-            throw new ValidationException("Die gewaehlte Kursleitung wurde nicht gefunden.");
+            throw new ValidationException("Die gewaehlte Kursleitung ist nicht mehr aktiv.");
         }
 
         CourseOffering entity;
@@ -238,7 +246,10 @@ internal sealed class AdminCourseService(
         entity.ExternalRegistrationUrl = string.IsNullOrWhiteSpace(request.ExternalRegistrationUrl) ? null : request.ExternalRegistrationUrl.Trim();
         entity.UpdatedUtc = DateTime.UtcNow;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Kurs konnte nicht gespeichert werden. Bitte pruefen Sie die Angaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CourseSaved", nameof(CourseOffering), entity.Id.ToString(), entity.Title, cancellationToken);
         return entity.Id;
     }
@@ -249,7 +260,10 @@ internal sealed class AdminCourseService(
             ?? throw new InvalidOperationException("Kurs nicht gefunden.");
         entity.Status = CourseOfferingStatus.Archived;
         entity.UpdatedUtc = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Kurs konnte nicht archiviert werden. Bitte versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CourseArchived", nameof(CourseOffering), entity.Id.ToString(), entity.Title, cancellationToken);
     }
 
@@ -268,10 +282,11 @@ internal sealed class AdminCourseService(
     {
         var rawCourseTypes = await dbContext.CourseTypes
             .AsNoTracking()
-            .OrderBy(x => x.CourseCategoryId)
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.CourseCategoryId)
             .ThenBy(x => x.SortOrder)
             .ThenBy(x => x.Name)
-            .Select(x => new CategorizedLookupItemDto(x.Id, x.CourseCategoryId, x.Name, null))
+            .Select(x => new CategorizedLookupItemDto(x.Id, x.CourseCategoryId, x.Name, x.IsActive ? null : "Inaktiv"))
             .ToListAsync(cancellationToken);
 
         return rawCourseTypes
@@ -286,8 +301,9 @@ internal sealed class AdminCourseService(
     {
         var rawVenues = await dbContext.Venues
             .AsNoTracking()
-            .OrderBy(x => x.Name)
-            .Select(x => new LookupItemDto(x.Id, x.Name, null))
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.Name)
+            .Select(x => new LookupItemDto(x.Id, x.Name, x.IsActive ? null : "Inaktiv"))
             .ToListAsync(cancellationToken);
 
         return LookupGrouping.GroupByLabel(rawVenues)

@@ -51,7 +51,13 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
             .Include(x => x.Venue)
             .Include(x => x.CourseCycle)
             .Include(x => x.AgeRule)
-            .Where(x => x.Status != CourseOfferingStatus.Archived);
+            .Where(x =>
+                x.Status != CourseOfferingStatus.Archived &&
+                x.Status != CourseOfferingStatus.Draft &&
+                x.CourseCategory!.IsActive &&
+                x.CourseType!.IsActive &&
+                x.Venue!.IsActive &&
+                (!x.CourseCycleId.HasValue || x.CourseCycle!.IsActive));
 
         if (filter.CategoryId.HasValue)
         {
@@ -156,7 +162,15 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
             .Include(x => x.Venue)
             .Include(x => x.CourseCycle)
             .Include(x => x.AgeRule)
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x =>
+                x.Id == id &&
+                x.Status != CourseOfferingStatus.Archived &&
+                x.Status != CourseOfferingStatus.Draft &&
+                x.CourseCategory!.IsActive &&
+                x.CourseType!.IsActive &&
+                x.Venue!.IsActive &&
+                (!x.CourseCycleId.HasValue || x.CourseCycle!.IsActive),
+                cancellationToken);
 
         if (offering is null)
         {
@@ -170,7 +184,7 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
             offering.CourseCategory?.Name ?? string.Empty,
             offering.CourseType?.Name ?? string.Empty,
             offering.Venue?.Name ?? string.Empty,
-            $"{offering.Venue?.AddressLine1}, {offering.Venue?.PostalCode} {offering.Venue?.City}",
+            BuildVenueAddress(offering),
             offering.CourseCycle?.Name,
             offering.InstructorName,
             GermanCulture.DateTimeFormat.GetDayName(offering.StartDate.ToDateTime(TimeOnly.MinValue).DayOfWeek),
@@ -225,7 +239,16 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
         var offerings = await dbContext.CourseOfferings
             .AsNoTracking()
             .Include(x => x.Venue)
-            .Where(x => x.RegistrationMode == CourseRegistrationMode.Internal && x.Status == CourseOfferingStatus.Published)
+            .Include(x => x.CourseCategory)
+            .Include(x => x.CourseType)
+            .Include(x => x.CourseCycle)
+            .Where(x =>
+                x.RegistrationMode == CourseRegistrationMode.Internal &&
+                x.Status == CourseOfferingStatus.Published &&
+                x.CourseCategory!.IsActive &&
+                x.CourseType!.IsActive &&
+                x.Venue!.IsActive &&
+                (!x.CourseCycleId.HasValue || x.CourseCycle!.IsActive))
             .OrderBy(x => x.StartDate)
             .ThenBy(x => x.DayOfWeek)
             .ThenBy(x => x.StartTime)
@@ -275,5 +298,17 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
             .Where(x => x.AssignedCourseOfferingId.HasValue && (x.Status == RegistrationStatus.Confirmed || x.Status == RegistrationStatus.Reserved))
             .GroupBy(x => x.AssignedCourseOfferingId!.Value)
             .ToDictionaryAsync(x => x.Key, x => x.Count(), cancellationToken);
+    }
+
+    private static string BuildVenueAddress(Domain.Entities.CourseOffering offering)
+    {
+        var parts = new[]
+        {
+            offering.Venue?.AddressLine1,
+            string.Join(" ", new[] { offering.Venue?.PostalCode, offering.Venue?.City }.Where(x => !string.IsNullOrWhiteSpace(x)))
+        };
+
+        var joined = string.Join(", ", parts.Where(x => !string.IsNullOrWhiteSpace(x)));
+        return string.IsNullOrWhiteSpace(joined) ? offering.Venue?.Name ?? string.Empty : joined;
     }
 }

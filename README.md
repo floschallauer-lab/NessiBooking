@@ -37,6 +37,7 @@ Der Schwerpunkt liegt auf einer ruhigen, klaren und wartbaren Verwaltungsoberfla
 - Kursdetailseite mit lesbaren Namen statt internen IDs
 - Anfrageformular mit Prioritaeten, klarer Eingabefolge und verbesserter Uebersicht
 - Fachlich saubere Auswahl: Unterkategorien und Kurse passen sich an den gewaehlten Bereich an
+- Robuste Formularlogik mit benutzerfreundlichen Fehlermeldungen statt roher Technik- oder Datenbankfehler
 
 ### Adminbereich
 
@@ -66,6 +67,8 @@ Alle Eintraege koennen zentral angelegt, bearbeitet, aktiviert/deaktiviert und k
 - Diese Zuordnung wird im Frontend und Backend validiert
 - Fehlerhafte Kombinationen werden beim Anlegen und Bearbeiten von Kursen verhindert
 - Bestehende Daten werden beim Start ueber Seeder- und Migrationslogik auf den aktuellen Stand gebracht
+- Inaktive Stammdaten werden im Kundenbereich nicht mehr angeboten und im Adminbereich eindeutig gekennzeichnet
+- Persistenzfehler werden defensiv abgefangen und als verstaendliche Hinweistexte zurueckgegeben
 
 ## Lokaler Start
 

@@ -22,6 +22,7 @@ internal sealed class RegistrationService(
         var orderedPriorities = request.Priorities.OrderBy(x => x.PriorityOrder).ToList();
         var offeringIds = orderedPriorities.Select(x => x.CourseOfferingId).ToArray();
         var offerings = await dbContext.CourseOfferings
+            .Include(x => x.CourseCategory)
             .Include(x => x.CourseType)
             .Include(x => x.Venue)
             .Include(x => x.CourseCycle)
@@ -45,6 +46,16 @@ internal sealed class RegistrationService(
             if (offering.Status is CourseOfferingStatus.Draft or CourseOfferingStatus.Archived)
             {
                 throw new ValidationException($"Der Kurs '{offering.Title}' ist aktuell nicht buchbar.");
+            }
+
+            if (offering.CourseCategory?.IsActive != true || offering.CourseType?.IsActive != true || offering.Venue?.IsActive != true)
+            {
+                throw new ValidationException($"Der Kurs '{offering.Title}' steht aktuell nicht fuer Anfragen zur Verfuegung.");
+            }
+
+            if (offering.CourseCycleId.HasValue && offering.CourseCycle?.IsActive != true)
+            {
+                throw new ValidationException($"Der Kurs '{offering.Title}' kann derzeit nicht angefragt werden, weil der zugeordnete Turnus nicht mehr aktiv ist.");
             }
 
             if (offering.Status == CourseOfferingStatus.SoldOut && !offering.AllowWaitlistWhenFull)
@@ -75,6 +86,12 @@ internal sealed class RegistrationService(
                     throw new ValidationException($"Der Kurstyp '{offering.CourseType.Name}' darf nur einmal gebucht werden.");
                 }
             }
+        }
+
+        if (request.PreferredCourseCycleId.HasValue &&
+            !await dbContext.CourseCycles.AnyAsync(x => x.Id == request.PreferredCourseCycleId.Value && x.IsActive, cancellationToken))
+        {
+            throw new ValidationException("Der gewuenschte Turnus ist nicht mehr verfuegbar.");
         }
 
         var guardian = new Guardian
@@ -115,7 +132,10 @@ internal sealed class RegistrationService(
         };
 
         dbContext.Registrations.Add(registration);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Anfrage konnte gerade nicht gespeichert werden. Bitte pruefen Sie Ihre Angaben und versuchen Sie es erneut.",
+            cancellationToken);
 
         var topOffering = offerings.Single(x => x.Id == orderedPriorities[0].CourseOfferingId);
         await emailSenderService.SendTemplatedEmailAsync(

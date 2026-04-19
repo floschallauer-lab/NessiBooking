@@ -18,7 +18,12 @@
 
     <AdminNav />
 
-    @if (_data is null)
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ReloadAsync">Erneut laden</MudButton>
+    }
+    else if (_data is null)
     {
         <MudProgressCircular Indeterminate="true" Class="mt-6" />
     }
@@ -191,6 +196,7 @@
     private CourseOfferingStatus? _statusFilter;
     private bool _onlyBookable;
     private bool _includeArchived;
+    private string? _loadError;
 
     private IReadOnlyList<CategorizedLookupItemDto> AvailableFilterCourseTypes => (_data?.CourseTypes ?? Array.Empty<CategorizedLookupItemDto>())
         .Where(x => !_categoryFilterId.HasValue || x.CategoryId == _categoryFilterId.Value)
@@ -205,8 +211,17 @@
 
     private async Task ReloadAsync()
     {
-        _data = await CourseService.GetManagementDataAsync();
-        EnsureValidFilterCourseTypeSelection();
+        try
+        {
+            _loadError = null;
+            _data = await CourseService.GetManagementDataAsync();
+            EnsureValidFilterCourseTypeSelection();
+        }
+        catch (Exception ex)
+        {
+            _data = null;
+            _loadError = UiFeedback.FromException(ex, "Die Kursverwaltung konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private void ResetFilters()
@@ -251,9 +266,16 @@
             return;
         }
 
-        await CourseService.ArchiveAsync(id);
-        Snackbar.Add("Kurs archiviert.", Severity.Info);
-        await ReloadAsync();
+        try
+        {
+            await CourseService.ArchiveAsync(id);
+            Snackbar.Add("Kurs archiviert.", Severity.Info);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(UiFeedback.FromException(ex, "Der Kurs konnte nicht archiviert werden. Bitte versuchen Sie es erneut."), Severity.Error);
+        }
     }
 
     private bool MatchesCourseFilters(CourseManagementRowDto course)

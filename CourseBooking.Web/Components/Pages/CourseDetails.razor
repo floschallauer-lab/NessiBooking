@@ -3,9 +3,19 @@
 
 <PageTitle>Kursdetails</PageTitle>
 
-@if (_course is null)
+@if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <MudAlert Severity="Severity.Warning">Der Kurs wurde nicht gefunden.</MudAlert>
+    <section class="page-section">
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Zur Kursliste</MudButton>
+    </section>
+}
+else if (_course is null)
+{
+    <section class="page-section">
+        <MudAlert Severity="Severity.Warning">Der Kurs wurde nicht gefunden.</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Zur Kursliste</MudButton>
+    </section>
 }
 else
 {
@@ -24,18 +34,21 @@ else
         <div class="detail-grid">
             <MudPaper Class="pa-4 surface-card" Elevation="0">
                 <MudText Typo="Typo.h6">Kursbeschreibung</MudText>
-                <MudText Typo="Typo.body1">@_course.Description</MudText>
+                <MudText Typo="Typo.body1">@(!string.IsNullOrWhiteSpace(_course.Description) ? _course.Description : "Für diesen Kurs ist noch keine Beschreibung hinterlegt.")</MudText>
 
                 <MudDivider Class="my-4" />
 
                 <MudText Typo="Typo.h6">Wichtige Daten</MudText>
                 <div class="catalog-meta mt-3">
-                    <MudText Typo="Typo.body2">Ort: @_course.VenueAddress</MudText>
+                    <MudText Typo="Typo.body2">Ort: @GetVenueAddress(_course)</MudText>
                     <MudText Typo="Typo.body2">Tag: @_course.DayLabel</MudText>
                     <MudText Typo="Typo.body2">Uhrzeit: @_course.TimeLabel</MudText>
                     <MudText Typo="Typo.body2">Zeitraum: @_course.PeriodLabel</MudText>
                     <MudText Typo="Typo.body2">Turnus: @(_course.Cycle ?? "flexibel")</MudText>
-                    <MudText Typo="Typo.body2">Kursleitung: @_course.InstructorName</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_course.InstructorName))
+                    {
+                        <MudText Typo="Typo.body2">Kursleitung: @_course.InstructorName</MudText>
+                    }
                     <MudText Typo="Typo.body2">Alter: @_course.AgeLabel</MudText>
                     <MudText Typo="Typo.body2">Preis: @GetPriceLabel(_course)</MudText>
                 </div>
@@ -54,7 +67,7 @@ else
                     <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined">@GetPriceLabel(_course)</MudChip>
                     @if (_course.RegistrationMode == CourseRegistrationMode.Internal)
                     {
-                        <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined">@($"{_course.SeatsRemaining} freie Plätze")</MudChip>
+                        <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined">@($"{Math.Max(_course.SeatsRemaining, 0)} freie Plätze")</MudChip>
                     }
                 </div>
 
@@ -63,9 +76,13 @@ else
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={_course.Id}")">Intern anfragen</MudButton>
                     }
-                    else if (_course.RegistrationMode == CourseRegistrationMode.External)
+                    else if (_course.RegistrationMode == CourseRegistrationMode.External && !string.IsNullOrWhiteSpace(_course.ExternalRegistrationUrl))
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="@_course.ExternalRegistrationUrl" Target="_blank">Externe Anmeldung</MudButton>
+                    }
+                    else if (_course.RegistrationMode == CourseRegistrationMode.External)
+                    {
+                        <MudButton Variant="Variant.Outlined" Disabled="true">Externer Link fehlt</MudButton>
                     }
                     <MudButton Variant="Variant.Text" Href="/">Zur Kursliste</MudButton>
                 </div>
@@ -77,10 +94,20 @@ else
 @code {
     [Parameter] public Guid Id { get; set; }
     private CourseDetailDto? _course;
+    private string? _loadError;
 
     protected override async Task OnParametersSetAsync()
     {
-        _course = await CatalogService.GetCourseAsync(Id);
+        try
+        {
+            _loadError = null;
+            _course = await CatalogService.GetCourseAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            _course = null;
+            _loadError = UiFeedback.FromException(ex, "Die Kursdetails konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private static string GetPriceLabel(CourseDetailDto course) => course.Price > 0 ? $"{course.Price:C}" : "Preis auf Anfrage";
@@ -101,4 +128,7 @@ else
             ? "Aktuell ist nur eine Wartelisten-Anfrage möglich."
             : "Dieser Kurs ist derzeit nicht intern anfragbar.";
     }
+
+    private static string GetVenueAddress(CourseDetailDto course)
+        => string.IsNullOrWhiteSpace(course.VenueAddress) ? course.Venue : course.VenueAddress;
 }

@@ -15,7 +15,12 @@
 
     <AdminNav />
 
-    @if (_page is null)
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Erneut laden</MudButton>
+    }
+    else if (_page is null)
     {
         <MudProgressCircular Indeterminate="true" Class="mt-6" />
     }
@@ -146,6 +151,7 @@
     private Guid? _cycleId;
     private CourseRegistrationMode? _registrationMode;
     private string _searchText = string.Empty;
+    private string? _loadError;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -155,7 +161,16 @@
 
     private async Task LoadAsync()
     {
-        _page = await RegistrationService.GetRegistrationsAsync(new RegistrationAdminFilter(_status, _courseOfferingId, _venueId, _cycleId, _registrationMode));
+        try
+        {
+            _loadError = null;
+            _page = await RegistrationService.GetRegistrationsAsync(new RegistrationAdminFilter(_status, _courseOfferingId, _venueId, _cycleId, _registrationMode));
+        }
+        catch (Exception ex)
+        {
+            _page = null;
+            _loadError = UiFeedback.FromException(ex, "Die Anmeldungen konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private async Task ResetFilters()

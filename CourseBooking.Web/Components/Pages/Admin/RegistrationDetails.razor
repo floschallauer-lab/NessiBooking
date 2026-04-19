@@ -7,7 +7,21 @@
 
 <PageTitle>Anmeldung</PageTitle>
 
-@if (_detail is null)
+@if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <section class="page-section">
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ReloadPageAsync">Erneut laden</MudButton>
+    </section>
+}
+else if (_notFound)
+{
+    <section class="page-section">
+        <MudAlert Severity="Severity.Warning" Class="mb-4">Die gewünschte Anmeldung wurde nicht gefunden.</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/admin/registrations">Zur Liste zurück</MudButton>
+    </section>
+}
+else if (_detail is null)
 {
     <MudProgressCircular Indeterminate="true" Class="mt-6" />
 }
@@ -137,20 +151,41 @@ else
     private Guid? _manualCourseId;
     private RegistrationStatus _selectedStatus;
     private string _adminNotes = string.Empty;
+    private string? _loadError;
+    private bool _notFound;
 
     protected override async Task OnParametersSetAsync()
     {
-        _courseOptions = await CatalogService.GetInternalCourseOptionsAsync();
-        await ReloadAsync();
+        await ReloadPageAsync();
+    }
+
+    private async Task ReloadPageAsync()
+    {
+        try
+        {
+            _loadError = null;
+            _courseOptions = await CatalogService.GetInternalCourseOptionsAsync();
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            _detail = null;
+            _loadError = UiFeedback.FromException(ex, "Die Anmeldung konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private async Task ReloadAsync()
     {
         _detail = await RegistrationService.GetRegistrationAsync(Id);
+        _notFound = _detail is null;
         if (_detail is not null)
         {
             _selectedStatus = _detail.Status;
             _adminNotes = _detail.AdminNotes;
+            if (_manualCourseId.HasValue && _courseOptions.All(x => x.Id != _manualCourseId.Value))
+            {
+                _manualCourseId = null;
+            }
         }
     }
 
@@ -164,7 +199,7 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Snackbar.Add(UiFeedback.FromException(ex, "Die automatische Zuweisung konnte nicht durchgeführt werden. Bitte versuchen Sie es erneut."), Severity.Error);
         }
     }
 
@@ -183,21 +218,35 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Snackbar.Add(UiFeedback.FromException(ex, "Die manuelle Zuweisung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
         }
     }
 
     private async Task SaveStatusAsync()
     {
-        await RegistrationService.UpdateStatusAsync(Id, _selectedStatus, null);
-        Snackbar.Add("Status gespeichert.", Severity.Success);
-        await ReloadAsync();
+        try
+        {
+            await RegistrationService.UpdateStatusAsync(Id, _selectedStatus, null);
+            Snackbar.Add("Status gespeichert.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(UiFeedback.FromException(ex, "Der Status konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
+        }
     }
 
     private async Task SaveNotesAsync()
     {
-        await RegistrationService.UpdateAdminNotesAsync(Id, _adminNotes);
-        Snackbar.Add("Notiz gespeichert.", Severity.Success);
-        await ReloadAsync();
+        try
+        {
+            await RegistrationService.UpdateAdminNotesAsync(Id, _adminNotes);
+            Snackbar.Add("Notiz gespeichert.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(UiFeedback.FromException(ex, "Die Notiz konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
+        }
     }
 }

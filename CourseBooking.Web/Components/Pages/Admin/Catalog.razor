@@ -16,7 +16,12 @@
 
     <AdminNav />
 
-    @if (_data is null)
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ReloadAsync">Erneut laden</MudButton>
+    }
+    else if (_data is null)
     {
         <MudProgressCircular Indeterminate="true" Class="mt-6" />
     }
@@ -409,6 +414,7 @@
     private AgeRuleUpsertRequest _ageRuleModel = new();
     private CourseInstructorUpsertRequest _instructorModel = new();
     private int _activeTabIndex;
+    private string? _loadError;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -423,7 +429,16 @@
 
     private async Task ReloadAsync()
     {
-        _data = await CatalogService.GetManagementDataAsync();
+        try
+        {
+            _loadError = null;
+            _data = await CatalogService.GetManagementDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _data = null;
+            _loadError = UiFeedback.FromException(ex, "Die Stammdaten konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private void PrepareAllNewForms()
@@ -658,7 +673,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Snackbar.Add(UiFeedback.FromException(ex, "Die Änderung konnte nicht gespeichert werden. Bitte prüfen Sie die Angaben und versuchen Sie es erneut."), Severity.Error);
         }
     }
 
@@ -688,7 +703,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Snackbar.Add(UiFeedback.FromException(ex, "Die Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut."), Severity.Error);
         }
     }
 

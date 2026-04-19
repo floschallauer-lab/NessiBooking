@@ -5,3 +5,11 @@ obj/
 logs/
 CourseBooking.Web/App_Data/
 CourseBooking.Web/Data/app.db
+CourseBooking.Web/app.stdout.log
+CourseBooking.Web/app.stderr.log
+
+# Lokale Diagnose- und Smoke-Test-Dateien im Projektwurzelverzeichnis
+/*.html
+/*.cookies
+/*.cookies.txt
+/*-headers.txt

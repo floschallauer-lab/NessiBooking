@@ -35,6 +35,16 @@
         </MudAlert>
     }
 
+    @if (InactiveSelectionMessages.Count > 0)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
+            @foreach (var message in InactiveSelectionMessages)
+            {
+                <div>@message</div>
+            }
+        </MudAlert>
+    }
+
     <div class="editor-section">
         <MudText Typo="Typo.subtitle1">Grunddaten</MudText>
         <MudGrid>
@@ -67,7 +77,7 @@
                 <MudSelect T="Guid" Label="Bereich" Value="@Model.CourseCategoryId" ValueChanged="OnCategoryChanged">
                     @foreach (var item in Data.Categories)
                     {
-                        <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -75,7 +85,7 @@
                 <MudSelect T="Guid" Label="Unterkategorie" @bind-Value="Model.CourseTypeId" Disabled="@(!AvailableCourseTypes.Any())">
                     @foreach (var item in AvailableCourseTypes)
                     {
-                        <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -83,7 +93,7 @@
                 <MudSelect T="Guid" Label="Ort / Bad" @bind-Value="Model.VenueId">
                     @foreach (var item in Data.Venues)
                     {
-                        <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
                     }
                 </MudSelect>
                 <MudLink Href="/admin/catalog?tab=venues" Class="helper-link">Ort oder Bad fehlt? In Stammdaten anlegen.</MudLink>
@@ -93,7 +103,7 @@
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Kein Turnus</MudSelectItem>
                     @foreach (var item in Data.Cycles)
                     {
-                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
                     }
                 </MudSelect>
                 <MudLink Href="/admin/catalog?tab=cycles" Class="helper-link">Turnus fehlt? In Stammdaten anlegen.</MudLink>
@@ -103,7 +113,7 @@
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Regel</MudSelectItem>
                     @foreach (var item in Data.AgeRules)
                     {
-                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
                     }
                 </MudSelect>
                 <MudLink Href="/admin/catalog?tab=ageRules" Class="helper-link">Altersregel fehlt? In Stammdaten anlegen.</MudLink>
@@ -113,7 +123,7 @@
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
                     @foreach (var item in Data.Instructors)
                     {
-                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
                     }
                 </MudSelect>
                 <MudLink Href="/admin/catalog?tab=instructors" Class="helper-link">Kursleitung fehlt? In Stammdaten anlegen.</MudLink>
@@ -249,6 +259,21 @@
         }
     }
 
+    private IReadOnlyList<string> InactiveSelectionMessages
+    {
+        get
+        {
+            var messages = new List<string>();
+            AddInactiveMessage(messages, Data.Categories.FirstOrDefault(x => x.Id == Model.CourseCategoryId), "Der gewählte Bereich ist inaktiv. Bitte wählen Sie vor dem Speichern einen aktiven Bereich aus.");
+            AddInactiveMessage(messages, AvailableCourseTypes.FirstOrDefault(x => x.Id == Model.CourseTypeId), "Die gewählte Unterkategorie ist inaktiv. Bitte wählen Sie eine aktive Unterkategorie aus.");
+            AddInactiveMessage(messages, Data.Venues.FirstOrDefault(x => x.Id == Model.VenueId), "Der gewählte Ort bzw. das gewählte Bad ist inaktiv. Bitte wählen Sie einen aktiven Ort aus.");
+            AddInactiveMessage(messages, Data.Cycles.FirstOrDefault(x => x.Id == Model.CourseCycleId), "Der gewählte Turnus ist inaktiv. Bitte wählen Sie einen aktiven Turnus aus oder entfernen Sie die Angabe.");
+            AddInactiveMessage(messages, Data.AgeRules.FirstOrDefault(x => x.Id == Model.AgeRuleId), "Die gewählte Altersregel ist inaktiv. Bitte wählen Sie eine aktive Regel aus oder entfernen Sie die Angabe.");
+            AddInactiveMessage(messages, Data.Instructors.FirstOrDefault(x => x.Id == Model.CourseInstructorId), "Die gewählte Kursleitung ist inaktiv. Bitte wählen Sie eine aktive Kursleitung aus.");
+            return messages;
+        }
+    }
+
     private bool CanSubmit =>
         Data.Categories.Count > 0 &&
         Data.Venues.Count > 0 &&
@@ -287,6 +312,12 @@
         Model.EndDate = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : null;
         Model.StartTime = _startTime.HasValue ? TimeOnly.FromTimeSpan(_startTime.Value) : null;
         Model.EndTime = _endTime.HasValue ? TimeOnly.FromTimeSpan(_endTime.Value) : null;
+
+        if (Model.RegistrationMode == CourseRegistrationMode.Internal)
+        {
+            Model.ExternalRegistrationUrl = null;
+        }
+
         await OnSubmit.InvokeAsync();
     }
 
@@ -334,5 +365,27 @@
         }
 
         Model.CourseInstructorId = Data.Instructors.First().Id;
+    }
+
+    private static string BuildLookupLabel(LookupItemDto item)
+        => string.IsNullOrWhiteSpace(item.SecondaryLabel) ? item.Label : $"{item.Label} ({item.SecondaryLabel})";
+
+    private static string BuildLookupLabel(CategorizedLookupItemDto item)
+        => string.IsNullOrWhiteSpace(item.SecondaryLabel) ? item.Label : $"{item.Label} ({item.SecondaryLabel})";
+
+    private static void AddInactiveMessage(ICollection<string> messages, LookupItemDto? item, string message)
+    {
+        if (item is not null && !string.IsNullOrWhiteSpace(item.SecondaryLabel))
+        {
+            messages.Add(message);
+        }
+    }
+
+    private static void AddInactiveMessage(ICollection<string> messages, CategorizedLookupItemDto? item, string message)
+    {
+        if (item is not null && !string.IsNullOrWhiteSpace(item.SecondaryLabel))
+        {
+            messages.Add(message);
+        }
     }
 }

@@ -329,6 +329,11 @@ body::before {
     gap: 0.25rem 0.5rem;
 }
 
+.table-actions .mud-button-root {
+    min-width: 0;
+    white-space: normal;
+}
+
 .login-shell {
     display: grid;
     grid-template-columns: minmax(0, 0.85fr) minmax(360px, 0.65fr);
@@ -596,6 +601,17 @@ body::before {
 
 .selected-course-card span {
     line-height: 1.45;
+}
+
+.catalog-card .mud-typography-h6,
+.surface-card strong,
+.surface-card .mud-typography-h6,
+.surface-card .mud-typography-body1,
+.table-subtext,
+.table-subline,
+.mud-alert {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .admin-block {

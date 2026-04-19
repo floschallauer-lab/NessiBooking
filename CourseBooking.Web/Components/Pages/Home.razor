@@ -41,8 +41,13 @@
                 <MudText Typo="Typo.h5">Kurse filtern</MudText>
                 <MudText Typo="Typo.body2">Wählen Sie nur die Angaben aus, die Ihnen bei der Suche wirklich helfen.</MudText>
             </div>
-            <MudButton Variant="Variant.Text" OnClick="ResetFilters">Filter zurücksetzen</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="ResetFilters" Disabled="_isLoading">Filter zurücksetzen</MudButton>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_loadError</MudAlert>
+        }
 
         <MudGrid>
             <MudItem xs="12" md="4">
@@ -103,7 +108,7 @@
         </MudGrid>
 
         <div class="inline-actions mt-4">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Kurse anzeigen</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync" Disabled="_isLoading">Kurse anzeigen</MudButton>
             <MudText Typo="Typo.body2">@((_catalog?.Courses.Count ?? 0)) Kurse gefunden</MudText>
         </div>
     </MudPaper>
@@ -159,9 +164,13 @@
                                 {
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={course.Id}")">Intern anfragen</MudButton>
                                 }
-                                else
+                                else if (!string.IsNullOrWhiteSpace(course.ExternalRegistrationUrl))
                                 {
                                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="@course.ExternalRegistrationUrl" Target="_blank">Extern öffnen</MudButton>
+                                }
+                                else
+                                {
+                                    <MudButton Variant="Variant.Outlined" Disabled="true">Externer Link fehlt</MudButton>
                                 }
                             </div>
                         </MudPaper>
@@ -186,6 +195,7 @@
     private CourseRegistrationMode? _registrationMode;
     private bool _onlyWithFreeSpots;
     private bool _isLoading;
+    private string? _loadError;
 
     private IReadOnlyList<CategorizedLookupItemDto> AvailableCourseTypes => (_catalog?.CourseTypes ?? Array.Empty<CategorizedLookupItemDto>())
         .Where(x => !_categoryId.HasValue || x.CategoryId == _categoryId.Value)
@@ -197,13 +207,24 @@
     private async Task LoadAsync()
     {
         _isLoading = true;
-        _catalog = await CatalogService.GetCatalogAsync(new CourseFilterDto(_categoryId, _courseTypeId, _venueId, _cycleId, _dayOfWeek, _registrationMode, _onlyWithFreeSpots));
-        if (_courseTypeId.HasValue && AvailableCourseTypes.All(x => x.Id != _courseTypeId.Value))
-        {
-            _courseTypeId = null;
-        }
+        _loadError = null;
 
-        _isLoading = false;
+        try
+        {
+            _catalog = await CatalogService.GetCatalogAsync(new CourseFilterDto(_categoryId, _courseTypeId, _venueId, _cycleId, _dayOfWeek, _registrationMode, _onlyWithFreeSpots));
+            if (_courseTypeId.HasValue && AvailableCourseTypes.All(x => x.Id != _courseTypeId.Value))
+            {
+                _courseTypeId = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadError = UiFeedback.FromException(ex, "Die Kursliste konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private Task OnCategoryChangedAsync()

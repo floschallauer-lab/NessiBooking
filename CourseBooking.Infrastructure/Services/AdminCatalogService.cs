@@ -3,6 +3,7 @@ using CourseBooking.Application.Dtos;
 using CourseBooking.Domain.Entities;
 using CourseBooking.Domain.Enums;
 using CourseBooking.Infrastructure.Persistence;
+using CourseBooking.Infrastructure.Services.Support;
 using Microsoft.EntityFrameworkCore;
 
 namespace CourseBooking.Infrastructure.Services;
@@ -171,7 +172,10 @@ internal sealed class AdminCatalogService(
             dbContext.CourseCategories.Add(entity);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Bereich konnte nicht gespeichert werden. Bitte pruefen Sie die Eingaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CategorySaved", nameof(CourseCategory), entity.Id.ToString(), entity.Name, cancellationToken);
         return entity.Id;
     }
@@ -190,7 +194,10 @@ internal sealed class AdminCatalogService(
         }
 
         dbContext.CourseCategories.Remove(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Bereich konnte nicht geloescht werden. Bitte laden Sie die Stammdaten neu und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CategoryDeleted", nameof(CourseCategory), entity.Id.ToString(), entity.Name, cancellationToken);
     }
 
@@ -238,7 +245,10 @@ internal sealed class AdminCatalogService(
             dbContext.CourseTypes.Add(entity);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Unterkategorie konnte nicht gespeichert werden. Bitte pruefen Sie die Angaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CourseTypeSaved", nameof(CourseType), entity.Id.ToString(), entity.Name, cancellationToken);
         return entity.Id;
     }
@@ -256,7 +266,10 @@ internal sealed class AdminCatalogService(
         }
 
         dbContext.CourseTypes.Remove(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Unterkategorie konnte nicht geloescht werden. Bitte laden Sie die Stammdaten neu und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CourseTypeDeleted", nameof(CourseType), entity.Id.ToString(), entity.Name, cancellationToken);
     }
 
@@ -287,7 +300,10 @@ internal sealed class AdminCatalogService(
             dbContext.Venues.Add(entity);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Ort konnte nicht gespeichert werden. Bitte pruefen Sie die Angaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("VenueSaved", nameof(Venue), entity.Id.ToString(), entity.Name, cancellationToken);
         return entity.Id;
     }
@@ -305,7 +321,10 @@ internal sealed class AdminCatalogService(
         }
 
         dbContext.Venues.Remove(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Ort konnte nicht geloescht werden. Bitte laden Sie die Stammdaten neu und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("VenueDeleted", nameof(Venue), entity.Id.ToString(), entity.Name, cancellationToken);
     }
 
@@ -337,7 +356,10 @@ internal sealed class AdminCatalogService(
             dbContext.CourseCycles.Add(entity);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Turnus konnte nicht gespeichert werden. Bitte pruefen Sie die Angaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CycleSaved", nameof(CourseCycle), entity.Id.ToString(), entity.Name, cancellationToken);
         return entity.Id;
     }
@@ -355,7 +377,10 @@ internal sealed class AdminCatalogService(
         }
 
         dbContext.CourseCycles.Remove(cycle);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Turnus konnte nicht geloescht werden. Bitte laden Sie die Stammdaten neu und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("CycleDeleted", nameof(CourseCycle), cycle.Id.ToString(), cycle.Name, cancellationToken);
     }
 
@@ -391,7 +416,10 @@ internal sealed class AdminCatalogService(
             dbContext.AgeRules.Add(entity);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Altersregel konnte nicht gespeichert werden. Bitte pruefen Sie die Angaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("AgeRuleSaved", nameof(AgeRule), entity.Id.ToString(), entity.Name, cancellationToken);
         return entity.Id;
     }
@@ -407,7 +435,10 @@ internal sealed class AdminCatalogService(
         }
 
         dbContext.AgeRules.Remove(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Altersregel konnte nicht geloescht werden. Bitte laden Sie die Stammdaten neu und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("AgeRuleDeleted", nameof(AgeRule), entity.Id.ToString(), entity.Name, cancellationToken);
     }
 
@@ -439,7 +470,10 @@ internal sealed class AdminCatalogService(
             dbContext.CourseInstructors.Add(entity);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Kursleitung konnte nicht gespeichert werden. Bitte pruefen Sie die Angaben und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("InstructorSaved", nameof(CourseInstructor), entity.Id.ToString(), entity.FullName, cancellationToken);
         return entity.Id;
     }
@@ -455,7 +489,10 @@ internal sealed class AdminCatalogService(
         }
 
         dbContext.CourseInstructors.Remove(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die Kursleitung konnte nicht geloescht werden. Bitte laden Sie die Stammdaten neu und versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("InstructorDeleted", nameof(CourseInstructor), entity.Id.ToString(), entity.FullName, cancellationToken);
     }
 

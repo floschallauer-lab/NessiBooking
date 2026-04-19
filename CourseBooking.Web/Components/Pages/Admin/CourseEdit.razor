@@ -16,7 +16,12 @@
 
     <AdminNav />
 
-    @if (_notFound)
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Erneut laden</MudButton>
+    }
+    else if (_notFound)
     {
         <MudAlert Severity="Severity.Warning" Class="mb-4">Der gewünschte Kurs wurde nicht gefunden.</MudAlert>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/admin/courses">Zur Kursverwaltung</MudButton>
@@ -48,6 +53,7 @@
     private CourseManagementDataDto? _data;
     private CourseUpsertRequest _model = new();
     private string? _formError;
+    private string? _loadError;
     private bool _isSaving;
     private bool _notFound;
 
@@ -58,22 +64,42 @@
 
     private async Task LoadAsync()
     {
-        _data = await CourseService.GetManagementDataAsync();
-        await ReloadModelAsync();
+        _loadError = null;
+        _formError = null;
+
+        try
+        {
+            _data = await CourseService.GetManagementDataAsync();
+            await ReloadModelAsync();
+        }
+        catch (Exception ex)
+        {
+            _data = null;
+            _loadError = UiFeedback.FromException(ex, "Die Bearbeitungsseite konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private async Task ReloadModelAsync()
     {
         _formError = null;
-        var model = await CourseService.GetCourseForEditAsync(Id);
-        if (model is null)
-        {
-            _notFound = true;
-            return;
-        }
 
-        _notFound = false;
-        _model = model;
+        try
+        {
+            var model = await CourseService.GetCourseForEditAsync(Id);
+            if (model is null)
+            {
+                _notFound = true;
+                return;
+            }
+
+            _notFound = false;
+            _model = model;
+        }
+        catch (Exception ex)
+        {
+            _notFound = false;
+            _loadError = UiFeedback.FromException(ex, "Der Kurs konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
     private async Task SaveAsync()
@@ -95,8 +121,9 @@
         }
         catch (Exception ex)
         {
-            _formError = ex.Message;
-            Snackbar.Add(ex.Message, Severity.Error);
+            var message = UiFeedback.FromException(ex, "Der Kurs konnte nicht gespeichert werden. Bitte prüfen Sie die Angaben und versuchen Sie es erneut.");
+            _formError = message;
+            Snackbar.Add(message, Severity.Error);
         }
         finally
         {

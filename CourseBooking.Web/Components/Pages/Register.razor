@@ -14,6 +14,11 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+    }
+
     @if (!string.IsNullOrWhiteSpace(_globalError))
     {
         <MudAlert Severity="Severity.Error" Class="mb-4">@_globalError</MudAlert>
@@ -31,14 +36,14 @@
                         <MudTextField @bind-Value="_model.ChildFullName" Label="Vor- und Nachname des Kindes" Error="@HasError(nameof(_model.ChildFullName))" ErrorText="@GetError(nameof(_model.ChildFullName))" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudDatePicker Label="Geburtsdatum des Kindes" Date="@_birthDate" DateChanged="OnBirthDateChanged" />
+                        <MudDatePicker Label="Geburtsdatum des Kindes" Date="@_birthDate" DateChanged="OnBirthDateChanged" Disabled="_isLoading" />
                         @if (HasError(nameof(_model.ChildBirthDate)))
                         {
                             <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.ChildBirthDate))</MudText>
                         }
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Label="Gewünschter Turnus" @bind-Value="_model.PreferredCourseCycleId">
+                        <MudSelect T="Guid?" Label="Gewünschter Turnus" @bind-Value="_model.PreferredCourseCycleId" Disabled="_isLoading">
                             <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Präferenz</MudSelectItem>
                             @foreach (var cycle in _cycles)
                             {
@@ -70,12 +75,12 @@
                         <MudText Typo="Typo.h6">2. Wunschkurse auswählen</MudText>
                         <MudText Typo="Typo.body2">Wählen Sie zuerst Bereich und Unterkategorie. Danach stehen nur passende Kurse zur Auswahl.</MudText>
                     </div>
-                    <MudButton Variant="Variant.Outlined" OnClick="AddPriority" Disabled="@(!CanAddPriority)">Weitere Priorität</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="AddPriority" Disabled="@(!CanAddPriority || _isLoading)">Weitere Priorität</MudButton>
                 </div>
 
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Label="Bereich" @bind-Value="_selectedCategoryId" @bind-Value:after="OnCategoryChangedAsync">
+                        <MudSelect T="Guid?" Label="Bereich" @bind-Value="_selectedCategoryId" @bind-Value:after="OnCategoryChangedAsync" Disabled="_isLoading">
                             <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
                             @foreach (var category in _categories)
                             {
@@ -84,7 +89,7 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_selectedCourseTypeId" @bind-Value:after="OnCourseTypeChangedAsync" Disabled="@(!_selectedCategoryId.HasValue)">
+                        <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_selectedCourseTypeId" @bind-Value:after="OnCourseTypeChangedAsync" Disabled="@(!_selectedCategoryId.HasValue || _isLoading)">
                             <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
                             @foreach (var courseType in AvailableCourseTypes)
                             {
@@ -125,7 +130,7 @@
                                     <MudTextField Value="@($"Priorität {row.PriorityOrder}")" ReadOnly="true" Label="Reihenfolge" />
                                 </MudItem>
                                 <MudItem xs="12" md="8">
-                                    <MudSelect T="Guid?" Label="Kurs auswählen" Value="@row.CourseOfferingId" ValueChanged="@(value => SetPriorityCourse(row.Key, value))" Disabled="@(!_selectedCourseTypeId.HasValue)">
+                                    <MudSelect T="Guid?" Label="Kurs auswählen" Value="@row.CourseOfferingId" ValueChanged="@(value => SetPriorityCourse(row.Key, value))" Disabled="@(!_selectedCourseTypeId.HasValue || _isLoading)">
                                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
                                         @foreach (var option in rowOptions)
                                         {
@@ -134,7 +139,7 @@
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" md="2" Class="d-flex align-center">
-                                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => RemovePriority(row.Key))" Disabled="@(_priorities.Count == 1)">Entfernen</MudButton>
+                                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => RemovePriority(row.Key))" Disabled="@(_priorities.Count == 1 || _isLoading)">Entfernen</MudButton>
                                 </MudItem>
                             </MudGrid>
                         </MudPaper>
@@ -165,7 +170,7 @@
                 </div>
 
                 <div class="inline-actions mt-4">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@_isSubmitting">Anfrage absenden</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@(_isSubmitting || _isLoading)">Anfrage absenden</MudButton>
                     <MudButton Variant="Variant.Text" Href="/">Zurück zur Kursliste</MudButton>
                 </div>
             </div>
@@ -217,7 +222,9 @@
     private Guid? _selectedCategoryId;
     private Guid? _selectedCourseTypeId;
     private string? _globalError;
+    private string? _loadError;
     private bool _isSubmitting;
+    private bool _isLoading;
 
     private IReadOnlyList<CategorizedLookupItemDto> AvailableCourseTypes => _courseTypes
         .Where(x => !_selectedCategoryId.HasValue || x.CategoryId == _selectedCategoryId.Value)
@@ -234,24 +241,51 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var formOptions = await CatalogService.GetRegistrationFormOptionsAsync();
-        _categories = formOptions.Categories.ToList();
-        _courseTypes = formOptions.CourseTypes.ToList();
-        _courseOptions = formOptions.Courses.ToList();
-        _cycles = formOptions.Cycles.ToList();
+        await LoadOptionsAsync();
+    }
 
-        AddPriority();
+    private async Task LoadOptionsAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        _globalError = null;
 
-        if (CourseId.HasValue)
+        try
         {
-            var selectedCourse = _courseOptions.FirstOrDefault(x => x.Id == CourseId.Value);
-            if (selectedCourse is not null)
+            var formOptions = await CatalogService.GetRegistrationFormOptionsAsync();
+            _categories = formOptions.Categories.ToList();
+            _courseTypes = formOptions.CourseTypes.ToList();
+            _courseOptions = formOptions.Courses.ToList();
+            _cycles = formOptions.Cycles.ToList();
+
+            if (_priorities.Count == 0)
             {
-                _selectedCategoryId = selectedCourse.CategoryId;
-                _selectedCourseTypeId = selectedCourse.CourseTypeId;
-                _priorities[0].CourseOfferingId = selectedCourse.Id;
-                _preselectedCourse = new LookupItemDto(selectedCourse.Id, selectedCourse.Label);
+                AddPriority();
             }
+
+            if (CourseId.HasValue)
+            {
+                var selectedCourse = _courseOptions.FirstOrDefault(x => x.Id == CourseId.Value);
+                if (selectedCourse is not null)
+                {
+                    _selectedCategoryId = selectedCourse.CategoryId;
+                    _selectedCourseTypeId = selectedCourse.CourseTypeId;
+                    _priorities[0].CourseOfferingId = selectedCourse.Id;
+                    _preselectedCourse = new LookupItemDto(selectedCourse.Id, selectedCourse.Label);
+                }
+                else
+                {
+                    _globalError = "Der vorab gewählte Kurs ist nicht mehr verfügbar. Bitte wählen Sie einen anderen Kurs aus.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadError = UiFeedback.FromException(ex, "Das Anfrageformular konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
@@ -271,12 +305,14 @@
             _selectedCourseTypeId = null;
         }
 
+        _errors.Remove("Priorities");
         PruneInvalidPrioritySelections();
         return Task.CompletedTask;
     }
 
     private Task OnCourseTypeChangedAsync()
     {
+        _errors.Remove("Priorities");
         PruneInvalidPrioritySelections();
         return Task.CompletedTask;
     }
@@ -290,6 +326,7 @@
         }
 
         _priorities.RemoveAt(index);
+        _errors.Remove("Priorities");
         NormalizePriorities();
     }
 
@@ -302,6 +339,7 @@
         }
 
         row.CourseOfferingId = value;
+        _errors.Remove("Priorities");
     }
 
     private IReadOnlyList<RegistrationCourseOptionDto> GetPriorityCourseOptions(Guid rowKey)
@@ -390,13 +428,9 @@
             var result = await RegistrationService.SubmitAsync(request);
             NavigationManager.NavigateTo($"/registration/submitted/{result.ConfirmationNumber}");
         }
-        catch (FluentValidation.ValidationException ex)
-        {
-            _globalError = ex.Errors.Any() ? string.Join(" ", ex.Errors.Select(x => x.ErrorMessage)) : ex.Message;
-        }
         catch (Exception ex)
         {
-            _globalError = ex.Message;
+            _globalError = UiFeedback.FromException(ex, "Die Anfrage konnte gerade nicht abgesendet werden. Bitte prüfen Sie Ihre Angaben und versuchen Sie es erneut.");
         }
         finally
         {

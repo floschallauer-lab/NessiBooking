@@ -146,7 +146,10 @@ internal sealed class AdminRegistrationService(
             registration.AdminNotes = $"{registration.AdminNotes}{Environment.NewLine}{adminNotes}".Trim();
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Der Status konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("RegistrationStatusUpdated", nameof(Domain.Entities.Registration), registration.Id.ToString(), status.ToString(), cancellationToken);
 
         var templateKey = status switch
@@ -182,7 +185,10 @@ internal sealed class AdminRegistrationService(
         var registration = await dbContext.Registrations.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new InvalidOperationException("Anmeldung nicht gefunden.");
         registration.AdminNotes = adminNotes.Trim();
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistenceGuard.SaveChangesAsync(
+            dbContext,
+            "Die interne Notiz konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+            cancellationToken);
         await auditService.WriteAsync("RegistrationNotesUpdated", nameof(Domain.Entities.Registration), registration.Id.ToString(), "Notiz aktualisiert", cancellationToken);
     }
 
