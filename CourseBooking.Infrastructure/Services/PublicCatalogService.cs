@@ -18,9 +18,10 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
         var rawCourseTypes = await dbContext.CourseTypes
             .AsNoTracking()
             .Where(x => x.IsActive)
-            .OrderBy(x => x.SortOrder)
+            .OrderBy(x => x.CourseCategoryId)
+            .ThenBy(x => x.SortOrder)
             .ThenBy(x => x.Name)
-            .Select(x => new LookupItemDto(x.Id, x.Name, null))
+            .Select(x => new CategorizedLookupItemDto(x.Id, x.CourseCategoryId, x.Name, null))
             .ToListAsync(cancellationToken);
         var rawVenues = await dbContext.Venues
             .AsNoTracking()
@@ -28,7 +29,19 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
             .OrderBy(x => x.Name)
             .Select(x => new LookupItemDto(x.Id, x.Name, null))
             .ToListAsync(cancellationToken);
-        var groupedCourseTypes = LookupGrouping.GroupByLabel(rawCourseTypes);
+        var groupedCourseTypeSets = rawCourseTypes
+            .GroupBy(x => new { x.CategoryId, Key = LookupGrouping.NormalizeLabelValue(x.Label) })
+            .Select(group =>
+            {
+                var canonical = group.OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).First();
+                return new
+                {
+                    Canonical = canonical,
+                    MemberIds = group.Select(x => x.Id).ToHashSet()
+                };
+            })
+            .ToList();
+        var groupedCourseTypes = groupedCourseTypeSets.Select(x => x.Canonical).ToList();
         var groupedVenues = LookupGrouping.GroupByLabel(rawVenues);
 
         var query = dbContext.CourseOfferings
@@ -47,8 +60,8 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
 
         if (filter.CourseTypeId.HasValue)
         {
-            var selectedCourseTypeIds = groupedCourseTypes
-                .FirstOrDefault(x => x.Id == filter.CourseTypeId.Value)?
+            var selectedCourseTypeIds = groupedCourseTypeSets
+                .FirstOrDefault(x => x.Canonical.Id == filter.CourseTypeId.Value)?
                 .MemberIds;
             if (selectedCourseTypeIds?.Count > 0)
             {
@@ -127,7 +140,7 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
 
         return new CatalogPageDto(
             categories,
-            groupedCourseTypes.Select(x => new LookupItemDto(x.Id, x.Label, null)).ToList(),
+            groupedCourseTypes,
             groupedVenues.Select(x => new LookupItemDto(x.Id, x.Label, null)).ToList(),
             cycles,
             items);
@@ -175,21 +188,73 @@ internal sealed class PublicCatalogService(CourseBookingDbContext dbContext) : I
             offering.CustomerNotice);
     }
 
-    public async Task<IReadOnlyCollection<LookupItemDto>> GetInternalCourseOptionsAsync(CancellationToken cancellationToken = default)
+    public async Task<RegistrationFormOptionsDto> GetRegistrationFormOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var courseOptions = await dbContext.CourseOfferings
+        var categories = await dbContext.CourseCategories
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new LookupItemDto(x.Id, x.Name, null))
+            .ToListAsync(cancellationToken);
+
+        var rawCourseTypes = await dbContext.CourseTypes
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.CourseCategoryId)
+            .ThenBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new CategorizedLookupItemDto(x.Id, x.CourseCategoryId, x.Name, null))
+            .ToListAsync(cancellationToken);
+
+        var groupedCourseTypes = rawCourseTypes
+            .GroupBy(x => new { x.CategoryId, Key = LookupGrouping.NormalizeLabelValue(x.Label) })
+            .Select(group => group.OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).First())
+            .OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var canonicalCourseTypeIds = rawCourseTypes
+            .GroupBy(x => new { x.CategoryId, Key = LookupGrouping.NormalizeLabelValue(x.Label) })
+            .SelectMany(group =>
+            {
+                var canonicalId = group.OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).First().Id;
+                return group.Select(item => new KeyValuePair<Guid, Guid>(item.Id, canonicalId));
+            })
+            .ToDictionary(x => x.Key, x => x.Value);
+
+        var offerings = await dbContext.CourseOfferings
             .AsNoTracking()
             .Include(x => x.Venue)
             .Where(x => x.RegistrationMode == CourseRegistrationMode.Internal && x.Status == CourseOfferingStatus.Published)
             .OrderBy(x => x.StartDate)
             .ThenBy(x => x.DayOfWeek)
+            .ThenBy(x => x.StartTime)
             .ToListAsync(cancellationToken);
 
-        return courseOptions
-            .Select(x => new LookupItemDto(
+        var cycles = await dbContext.CourseCycles
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new LookupItemDto(x.Id, x.Name, null))
+            .ToListAsync(cancellationToken);
+
+        var courseOptions = offerings
+            .Select(x => new RegistrationCourseOptionDto(
                 x.Id,
-                $"{x.Title} | {x.Venue!.Name} | {GermanCulture.DateTimeFormat.GetDayName(x.StartDate.ToDateTime(TimeOnly.MinValue).DayOfWeek)} {x.StartTime:HH\\:mm}",
-                null))
+                x.CourseCategoryId,
+                canonicalCourseTypeIds.TryGetValue(x.CourseTypeId, out var canonicalCourseTypeId) ? canonicalCourseTypeId : x.CourseTypeId,
+                $"{x.Title} | {x.Venue!.Name} | {GermanCulture.DateTimeFormat.GetDayName(x.StartDate.ToDateTime(TimeOnly.MinValue).DayOfWeek)} {x.StartTime:HH\\:mm}"))
+            .ToList();
+
+        return new RegistrationFormOptionsDto(categories, groupedCourseTypes, cycles, courseOptions);
+    }
+
+    public async Task<IReadOnlyCollection<LookupItemDto>> GetInternalCourseOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        var formOptions = await GetRegistrationFormOptionsAsync(cancellationToken);
+        return formOptions.Courses
+            .Select(x => new LookupItemDto(x.Id, x.Label, null))
             .ToList();
     }
 

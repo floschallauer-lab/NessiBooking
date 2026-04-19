@@ -1,0 +1,120 @@
+@page "/admin/courses/new"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminCourseService CourseService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Neuen Kurs anlegen</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Neueingabe Kurs</MudText>
+            <MudText Typo="Typo.body1">Neuen Kurs in klaren Schritten anlegen. Fehlende Vorlagen lassen sich direkt in den Stammdaten ergänzen.</MudText>
+        </div>
+    </div>
+
+    <AdminNav />
+
+    @if (_data is null)
+    {
+        <MudProgressCircular Indeterminate="true" Class="mt-6" />
+    }
+    else
+    {
+        <AdminCourseForm
+            Data="_data"
+            Model="_model"
+            Heading="@(_copySourceId.HasValue ? "Kurs duplizieren" : "Neuen Kurs anlegen")"
+            Lead="@(_copySourceId.HasValue ? "Die Angaben wurden aus einem bestehenden Kurs übernommen und können jetzt angepasst werden." : "Die Eingabe ist bewusst in ruhige Blöcke gegliedert, damit nichts übersehen wird.")"
+            ErrorText="@_formError"
+            PrimaryActionText="Kurs anlegen"
+            SecondaryActionText="@(_copySourceId.HasValue ? "Original erneut übernehmen" : "Formular leeren")"
+            BackHref="/admin/courses"
+            IsBusy="_isSaving"
+            OnSubmit="SaveAsync"
+            OnReset="ResetAsync" />
+    }
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "copyFrom")]
+    public Guid? CopyFromId { get; set; }
+
+    private CourseManagementDataDto? _data;
+    private CourseUpsertRequest _model = CreateDefaultRequest();
+    private Guid? _copySourceId;
+    private string? _formError;
+    private bool _isSaving;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _data = await CourseService.GetManagementDataAsync();
+        _copySourceId = CopyFromId;
+        _formError = null;
+        _model = CopyFromId.HasValue
+            ? await LoadDuplicateAsync(CopyFromId.Value)
+            : CreateDefaultRequest();
+    }
+
+    private async Task<CourseUpsertRequest> LoadDuplicateAsync(Guid sourceId)
+    {
+        var duplicate = await CourseService.GetCourseForDuplicateAsync(sourceId);
+        if (duplicate is not null)
+        {
+            return duplicate;
+        }
+
+        Snackbar.Add("Die Vorlage für die Kopie wurde nicht gefunden. Es wird ein leerer Kurs angelegt.", Severity.Warning);
+        _copySourceId = null;
+        return CreateDefaultRequest();
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            _isSaving = true;
+            _formError = null;
+            var id = await CourseService.SaveAsync(_model);
+            Snackbar.Add("Neuer Kurs gespeichert.", Severity.Success);
+            NavigationManager.NavigateTo($"/admin/courses/{id}/edit");
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        _formError = null;
+
+        if (_copySourceId.HasValue)
+        {
+            _model = await LoadDuplicateAsync(_copySourceId.Value);
+            return;
+        }
+
+        _model = CreateDefaultRequest();
+    }
+
+    private static CourseUpsertRequest CreateDefaultRequest() => new()
+    {
+        DayOfWeek = DayOfWeek.Monday,
+        RegistrationMode = CourseRegistrationMode.Internal,
+        Status = CourseOfferingStatus.Draft,
+        Capacity = 8,
+        AllowWaitlistWhenFull = true
+    };
+}

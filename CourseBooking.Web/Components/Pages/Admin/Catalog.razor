@@ -1,0 +1,728 @@
+@page "/admin/catalog"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminCatalogService CatalogService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Stammdaten</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Stammdaten</MudText>
+            <MudText Typo="Typo.body1">Hier pflegen Sie die Grundbausteine, die später in Kursen verwendet werden.</MudText>
+        </div>
+    </div>
+
+    <AdminNav />
+
+    @if (_data is null)
+    {
+        <MudProgressCircular Indeterminate="true" Class="mt-6" />
+    }
+    else
+    {
+        <div class="stats-grid stats-grid-wide admin-summary-cards">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Bereiche</MudText>
+                <MudText Typo="Typo.h4">@_data.Categories.Count</MudText>
+                <MudText Typo="Typo.body2">@_data.Categories.Count(x => x.IsActive) aktiv</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Unterkategorien</MudText>
+                <MudText Typo="Typo.h4">@_data.CourseTypes.Count</MudText>
+                <MudText Typo="Typo.body2">@_data.CourseTypes.Count(x => x.IsActive) aktiv</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Orte / Bäder</MudText>
+                <MudText Typo="Typo.h4">@_data.Venues.Count</MudText>
+                <MudText Typo="Typo.body2">@_data.Venues.Count(x => x.IsActive) aktiv</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Turnusse</MudText>
+                <MudText Typo="Typo.h4">@_data.Cycles.Count</MudText>
+                <MudText Typo="Typo.body2">@_data.Cycles.Count(x => x.IsActive) aktiv</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Altersregeln</MudText>
+                <MudText Typo="Typo.h4">@_data.AgeRules.Count</MudText>
+                <MudText Typo="Typo.body2">@_data.AgeRules.Count(x => x.IsActive) aktiv</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Kursleitungen</MudText>
+                <MudText Typo="Typo.h4">@_data.Instructors.Count</MudText>
+                <MudText Typo="Typo.body2">@_data.Instructors.Count(x => x.IsActive) aktiv</MudText>
+            </MudPaper>
+        </div>
+
+        <MudPaper Class="pa-4 mt-4 mb-4 surface-card" Elevation="0">
+            <MudText Typo="Typo.h6">Pflegeort für alle Auswahlfelder</MudText>
+            <MudText Typo="Typo.body2" Class="mb-3">Wenn ein Dropdown im Kursformular erscheint, sollte der passende Eintrag hier angelegt oder bearbeitet werden.</MudText>
+            <MudAlert Severity="Severity.Info" Dense="true">Löschen ist nur möglich, wenn ein Eintrag noch nicht verwendet wird. Andernfalls bitte auf inaktiv stellen.</MudAlert>
+        </MudPaper>
+
+        <MudTabs Rounded="true" @bind-ActivePanelIndex="_activeTabIndex">
+            <MudTabPanel Text="Bereiche">
+                <div class="admin-grid admin-grid-workspace">
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudTable Items="_data.Categories" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Bereich</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Nutzung</MudTh>
+                                <MudTh>Aktionen</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Bereich">
+                                    <div>
+                                        <strong>@context.Name</strong>
+                                        @if (!string.IsNullOrWhiteSpace(context.Description))
+                                        {
+                                            <MudText Typo="Typo.body2" Class="table-subtext">@context.Description</MudText>
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Status"><StatusBadge Text="@(context.IsActive ? "Aktiv" : "Inaktiv")" /></MudTd>
+                                <MudTd DataLabel="Nutzung">@context.CourseTypeCount Unterkategorien, @context.CourseCount Kurse</MudTd>
+                                <MudTd DataLabel="Aktionen">
+                                    <div class="table-actions">
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => EditCategory(context))">Bearbeiten</MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => ToggleCategoryAsync(context))">@(context.IsActive ? "Inaktiv" : "Aktiv")</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmDeleteCategoryAsync(context))">Löschen</MudButton>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@(_categoryModel.Id.HasValue ? "Bereich bearbeiten" : "Bereich anlegen")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">Bereiche steuern, welche Unterkategorien später auswählbar sind.</MudText>
+                        <MudTextField @bind-Value="_categoryModel.Name" Label="Bezeichnung" />
+                        <MudTextField @bind-Value="_categoryModel.Description" Label="Kurze Beschreibung" Lines="3" Class="mt-3" />
+                        <MudNumericField T="int" @bind-Value="_categoryModel.SortOrder" Label="Reihenfolge" Class="mt-3" />
+                        <MudSwitch T="bool" @bind-Value="_categoryModel.IsActive" Color="Color.Primary" Class="mt-3">Bereich aktiv anzeigen</MudSwitch>
+                        <div class="inline-actions mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCategoryAsync">Speichern</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="PrepareNewCategory">Leeren</MudButton>
+                        </div>
+                    </MudPaper>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Unterkategorien">
+                <div class="admin-grid admin-grid-workspace">
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudTable Items="_data.CourseTypes" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Unterkategorie</MudTh>
+                                <MudTh>Bereich</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Aktionen</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Unterkategorie">
+                                    <div>
+                                        <strong>@context.Name</strong>
+                                        <MudText Typo="Typo.body2" Class="table-subtext">@(context.OnlyBookableOnce ? "Nur einmal buchbar" : "Mehrfach buchbar")</MudText>
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Bereich">@context.CategoryName</MudTd>
+                                <MudTd DataLabel="Status">
+                                    <div class="status-stack">
+                                        <StatusBadge Text="@(context.IsActive ? "Aktiv" : "Inaktiv")" />
+                                        @if (context.CourseCount > 0)
+                                        {
+                                            <StatusBadge Text="@($"{context.CourseCount} Kurse")" />
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Aktionen">
+                                    <div class="table-actions">
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => EditCourseType(context))">Bearbeiten</MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => ToggleCourseTypeAsync(context))">@(context.IsActive ? "Inaktiv" : "Aktiv")</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmDeleteCourseTypeAsync(context))">Löschen</MudButton>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@(_courseTypeModel.Id.HasValue ? "Unterkategorie bearbeiten" : "Unterkategorie anlegen")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">Jede Unterkategorie gehört genau zu einem Bereich.</MudText>
+                        <MudSelect T="Guid" Label="Zugehöriger Bereich" @bind-Value="_courseTypeModel.CourseCategoryId">
+                            @foreach (var category in _data.Categories.OrderBy(x => x.SortOrder).ThenBy(x => x.Name))
+                            {
+                                <MudSelectItem T="Guid" Value="@category.Id">@category.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField @bind-Value="_courseTypeModel.Name" Label="Bezeichnung" Class="mt-3" />
+                        <MudTextField @bind-Value="_courseTypeModel.Description" Label="Kurze Beschreibung" Lines="3" Class="mt-3" />
+                        <MudNumericField T="int" @bind-Value="_courseTypeModel.SortOrder" Label="Reihenfolge" Class="mt-3" />
+                        <MudSwitch T="bool" @bind-Value="_courseTypeModel.OnlyBookableOnce" Color="Color.Primary" Class="mt-3">Darf pro Kind nur einmal fix gebucht werden</MudSwitch>
+                        <MudSwitch T="bool" @bind-Value="_courseTypeModel.IsActive" Color="Color.Primary" Class="mt-3">Unterkategorie aktiv anzeigen</MudSwitch>
+                        <div class="inline-actions mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCourseTypeAsync">Speichern</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="PrepareNewCourseType">Leeren</MudButton>
+                        </div>
+                    </MudPaper>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Orte / Bäder">
+                <div class="admin-grid admin-grid-workspace">
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudTable Items="_data.Venues" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Ort</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Nutzung</MudTh>
+                                <MudTh>Aktionen</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Ort">
+                                    <div>
+                                        <strong>@context.Name</strong>
+                                        <MudText Typo="Typo.body2" Class="table-subtext">@context.AddressLine1, @context.PostalCode @context.City</MudText>
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Status"><StatusBadge Text="@(context.IsActive ? "Aktiv" : "Inaktiv")" /></MudTd>
+                                <MudTd DataLabel="Nutzung">@context.CourseCount Kurse</MudTd>
+                                <MudTd DataLabel="Aktionen">
+                                    <div class="table-actions">
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => EditVenue(context))">Bearbeiten</MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => ToggleVenueAsync(context))">@(context.IsActive ? "Inaktiv" : "Aktiv")</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmDeleteVenueAsync(context))">Löschen</MudButton>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@(_venueModel.Id.HasValue ? "Ort bearbeiten" : "Ort anlegen")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">Adresse und Zusatzhinweise erscheinen in den Kursdetails.</MudText>
+                        <MudTextField @bind-Value="_venueModel.Name" Label="Name" />
+                        <MudTextField @bind-Value="_venueModel.AddressLine1" Label="Adresse" Class="mt-3" />
+                        <MudGrid Class="mt-1">
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_venueModel.PostalCode" Label="PLZ" />
+                            </MudItem>
+                            <MudItem xs="12" md="8">
+                                <MudTextField @bind-Value="_venueModel.City" Label="Ort / Zusatz" />
+                            </MudItem>
+                        </MudGrid>
+                        <MudTextField @bind-Value="_venueModel.Notes" Label="Zusatzhinweis" Lines="3" Class="mt-2" />
+                        <MudSwitch T="bool" @bind-Value="_venueModel.IsActive" Color="Color.Primary" Class="mt-3">Ort aktiv anzeigen</MudSwitch>
+                        <div class="inline-actions mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveVenueAsync">Speichern</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="PrepareNewVenue">Leeren</MudButton>
+                        </div>
+                    </MudPaper>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Turnusse">
+                <div class="admin-grid admin-grid-workspace">
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudTable Items="_data.Cycles" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Turnus</MudTh>
+                                <MudTh>Kurzzeichen</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Aktionen</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Turnus">
+                                    <div>
+                                        <strong>@context.Name</strong>
+                                        @if (!string.IsNullOrWhiteSpace(context.Description))
+                                        {
+                                            <MudText Typo="Typo.body2" Class="table-subtext">@context.Description</MudText>
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Kurzzeichen">@context.Code</MudTd>
+                                <MudTd DataLabel="Status">
+                                    <div class="status-stack">
+                                        <StatusBadge Text="@(context.IsActive ? "Aktiv" : "Inaktiv")" />
+                                        @if (context.CourseCount > 0)
+                                        {
+                                            <StatusBadge Text="@($"{context.CourseCount} Kurse")" />
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Aktionen">
+                                    <div class="table-actions">
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => EditCycle(context))">Bearbeiten</MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => ToggleCycleAsync(context))">@(context.IsActive ? "Inaktiv" : "Aktiv")</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmDeleteCycleAsync(context))">Löschen</MudButton>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@(_cycleModel.Id.HasValue ? "Turnus bearbeiten" : "Turnus anlegen")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">Kurzzeichen sollen eindeutig und leicht wiedererkennbar sein.</MudText>
+                        <MudTextField @bind-Value="_cycleModel.Name" Label="Name" />
+                        <MudTextField @bind-Value="_cycleModel.Code" Label="Kurzzeichen" Class="mt-3" />
+                        <MudTextField @bind-Value="_cycleModel.Description" Label="Beschreibung" Lines="3" Class="mt-3" />
+                        <MudNumericField T="int" @bind-Value="_cycleModel.SortOrder" Label="Reihenfolge" Class="mt-3" />
+                        <MudSwitch T="bool" @bind-Value="_cycleModel.IsActive" Color="Color.Primary" Class="mt-3">Turnus aktiv anzeigen</MudSwitch>
+                        <div class="inline-actions mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCycleAsync">Speichern</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="PrepareNewCycle">Leeren</MudButton>
+                        </div>
+                    </MudPaper>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Altersregeln">
+                <div class="admin-grid admin-grid-workspace">
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudTable Items="_data.AgeRules" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Altersregel</MudTh>
+                                <MudTh>Einheit</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Aktionen</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Altersregel">
+                                    <div>
+                                        <strong>@context.Name</strong>
+                                        <MudText Typo="Typo.body2" Class="table-subtext">@BuildAgeRangeText(context)</MudText>
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Einheit">@BuildAgeUnitLabel(context.Unit)</MudTd>
+                                <MudTd DataLabel="Status">
+                                    <div class="status-stack">
+                                        <StatusBadge Text="@(context.IsActive ? "Aktiv" : "Inaktiv")" />
+                                        @if (context.CourseCount > 0)
+                                        {
+                                            <StatusBadge Text="@($"{context.CourseCount} Kurse")" />
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Aktionen">
+                                    <div class="table-actions">
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => EditAgeRule(context))">Bearbeiten</MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => ToggleAgeRuleAsync(context))">@(context.IsActive ? "Inaktiv" : "Aktiv")</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmDeleteAgeRuleAsync(context))">Löschen</MudButton>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@(_ageRuleModel.Id.HasValue ? "Altersregel bearbeiten" : "Altersregel anlegen")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">Altersregeln erscheinen in Kursdetails und helfen bei der fachlich richtigen Zuordnung.</MudText>
+                        <MudTextField @bind-Value="_ageRuleModel.Name" Label="Bezeichnung" />
+                        <MudGrid Class="mt-1">
+                            <MudItem xs="12" md="4">
+                                <MudNumericField T="int?" @bind-Value="_ageRuleModel.MinimumValue" Label="Von" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudNumericField T="int?" @bind-Value="_ageRuleModel.MaximumValue" Label="Bis" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="string" @bind-Value="_ageRuleModel.Unit" Label="Einheit">
+                                    <MudSelectItem T="string" Value="@("Months")">Monate</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Years")">Jahre</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                        </MudGrid>
+                        <MudTextField @bind-Value="_ageRuleModel.Notes" Label="Zusatzhinweis" Lines="3" Class="mt-3" />
+                        <MudSwitch T="bool" @bind-Value="_ageRuleModel.IsActive" Color="Color.Primary" Class="mt-3">Altersregel aktiv anzeigen</MudSwitch>
+                        <div class="inline-actions mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAgeRuleAsync">Speichern</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="PrepareNewAgeRule">Leeren</MudButton>
+                        </div>
+                    </MudPaper>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Kursleitungen">
+                <div class="admin-grid admin-grid-workspace">
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudTable Items="_data.Instructors" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Kursleitung</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Nutzung</MudTh>
+                                <MudTh>Aktionen</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Kursleitung">
+                                    <div>
+                                        <strong>@context.FullName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(context.Description))
+                                        {
+                                            <MudText Typo="Typo.body2" Class="table-subtext">@context.Description</MudText>
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Status"><StatusBadge Text="@(context.IsActive ? "Aktiv" : "Inaktiv")" /></MudTd>
+                                <MudTd DataLabel="Nutzung">@context.CourseCount Kurse</MudTd>
+                                <MudTd DataLabel="Aktionen">
+                                    <div class="table-actions">
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => EditInstructor(context))">Bearbeiten</MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="@(() => ToggleInstructorAsync(context))">@(context.IsActive ? "Inaktiv" : "Aktiv")</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmDeleteInstructorAsync(context))">Löschen</MudButton>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4 surface-card" Elevation="0">
+                        <MudText Typo="Typo.h6">@(_instructorModel.Id.HasValue ? "Kursleitung bearbeiten" : "Kursleitung anlegen")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">Die Kursleitung ist im Kursformular auswählbar und erscheint später im Kundenbereich.</MudText>
+                        <MudTextField @bind-Value="_instructorModel.FullName" Label="Name" />
+                        <MudTextField @bind-Value="_instructorModel.Description" Label="Kurzbeschreibung" Lines="3" Class="mt-3" />
+                        <MudNumericField T="int" @bind-Value="_instructorModel.SortOrder" Label="Reihenfolge" Class="mt-3" />
+                        <MudSwitch T="bool" @bind-Value="_instructorModel.IsActive" Color="Color.Primary" Class="mt-3">Kursleitung aktiv anzeigen</MudSwitch>
+                        <div class="inline-actions mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveInstructorAsync">Speichern</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="PrepareNewInstructor">Leeren</MudButton>
+                        </div>
+                    </MudPaper>
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? Tab { get; set; }
+
+    private AdminCatalogDataDto? _data;
+    private CourseCategoryUpsertRequest _categoryModel = new();
+    private CourseTypeUpsertRequest _courseTypeModel = new();
+    private VenueUpsertRequest _venueModel = new();
+    private CourseCycleUpsertRequest _cycleModel = new();
+    private AgeRuleUpsertRequest _ageRuleModel = new();
+    private CourseInstructorUpsertRequest _instructorModel = new();
+    private int _activeTabIndex;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _activeTabIndex = ResolveTabIndex(Tab);
+
+        if (_data is null)
+        {
+            await ReloadAsync();
+            PrepareAllNewForms();
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _data = await CatalogService.GetManagementDataAsync();
+    }
+
+    private void PrepareAllNewForms()
+    {
+        PrepareNewCategory();
+        PrepareNewCourseType();
+        PrepareNewVenue();
+        PrepareNewCycle();
+        PrepareNewAgeRule();
+        PrepareNewInstructor();
+    }
+
+    private void PrepareNewCategory()
+    {
+        _categoryModel = new CourseCategoryUpsertRequest
+        {
+            SortOrder = NextSortOrder(_data?.Categories.Select(x => x.SortOrder)),
+            IsActive = true
+        };
+    }
+
+    private void PrepareNewCourseType()
+    {
+        _courseTypeModel = new CourseTypeUpsertRequest
+        {
+            CourseCategoryId = _data?.Categories.OrderBy(x => x.SortOrder).ThenBy(x => x.Name).FirstOrDefault()?.Id ?? Guid.Empty,
+            SortOrder = NextSortOrder(_data?.CourseTypes.Select(x => x.SortOrder)),
+            IsActive = true
+        };
+    }
+
+    private void PrepareNewVenue()
+    {
+        _venueModel = new VenueUpsertRequest
+        {
+            IsActive = true
+        };
+    }
+
+    private void PrepareNewCycle()
+    {
+        _cycleModel = new CourseCycleUpsertRequest
+        {
+            SortOrder = NextSortOrder(_data?.Cycles.Select(x => x.SortOrder)),
+            IsActive = true
+        };
+    }
+
+    private void PrepareNewAgeRule()
+    {
+        _ageRuleModel = new AgeRuleUpsertRequest
+        {
+            Unit = "Years",
+            IsActive = true
+        };
+    }
+
+    private void PrepareNewInstructor()
+    {
+        _instructorModel = new CourseInstructorUpsertRequest
+        {
+            SortOrder = NextSortOrder(_data?.Instructors.Select(x => x.SortOrder)),
+            IsActive = true
+        };
+    }
+
+    private void EditCategory(CategoryManagementRowDto row)
+    {
+        _categoryModel = new CourseCategoryUpsertRequest
+        {
+            Id = row.Id,
+            Name = row.Name,
+            Description = row.Description,
+            SortOrder = row.SortOrder,
+            IsActive = row.IsActive
+        };
+    }
+
+    private void EditCourseType(CourseTypeManagementRowDto row)
+    {
+        _courseTypeModel = new CourseTypeUpsertRequest
+        {
+            Id = row.Id,
+            CourseCategoryId = row.CategoryId,
+            Name = row.Name,
+            Description = row.Description,
+            OnlyBookableOnce = row.OnlyBookableOnce,
+            SortOrder = row.SortOrder,
+            IsActive = row.IsActive
+        };
+    }
+
+    private void EditVenue(VenueManagementRowDto row)
+    {
+        _venueModel = new VenueUpsertRequest
+        {
+            Id = row.Id,
+            Name = row.Name,
+            AddressLine1 = row.AddressLine1,
+            PostalCode = row.PostalCode,
+            City = row.City,
+            Notes = row.Notes,
+            IsActive = row.IsActive
+        };
+    }
+
+    private void EditCycle(CourseCycleManagementRowDto row)
+    {
+        _cycleModel = new CourseCycleUpsertRequest
+        {
+            Id = row.Id,
+            Name = row.Name,
+            Code = row.Code,
+            Description = row.Description,
+            SortOrder = row.SortOrder,
+            IsActive = row.IsActive
+        };
+    }
+
+    private void EditAgeRule(AgeRuleManagementRowDto row)
+    {
+        _ageRuleModel = new AgeRuleUpsertRequest
+        {
+            Id = row.Id,
+            Name = row.Name,
+            MinimumValue = row.MinimumValue,
+            MaximumValue = row.MaximumValue,
+            Unit = row.Unit,
+            Notes = row.Notes,
+            IsActive = row.IsActive
+        };
+    }
+
+    private void EditInstructor(CourseInstructorManagementRowDto row)
+    {
+        _instructorModel = new CourseInstructorUpsertRequest
+        {
+            Id = row.Id,
+            FullName = row.FullName,
+            Description = row.Description,
+            SortOrder = row.SortOrder,
+            IsActive = row.IsActive
+        };
+    }
+
+    private async Task SaveCategoryAsync()
+        => await RunCatalogActionAsync(() => CatalogService.SaveCategoryAsync(_categoryModel), "Bereich gespeichert.", PrepareNewCategory);
+
+    private async Task SaveCourseTypeAsync()
+        => await RunCatalogActionAsync(() => CatalogService.SaveCourseTypeAsync(_courseTypeModel), "Unterkategorie gespeichert.", PrepareNewCourseType);
+
+    private async Task SaveVenueAsync()
+        => await RunCatalogActionAsync(() => CatalogService.SaveVenueAsync(_venueModel), "Ort gespeichert.", PrepareNewVenue);
+
+    private async Task SaveCycleAsync()
+        => await RunCatalogActionAsync(() => CatalogService.SaveCycleAsync(_cycleModel), "Turnus gespeichert.", PrepareNewCycle);
+
+    private async Task SaveAgeRuleAsync()
+        => await RunCatalogActionAsync(() => CatalogService.SaveAgeRuleAsync(_ageRuleModel), "Altersregel gespeichert.", PrepareNewAgeRule);
+
+    private async Task SaveInstructorAsync()
+        => await RunCatalogActionAsync(() => CatalogService.SaveInstructorAsync(_instructorModel), "Kursleitung gespeichert.", PrepareNewInstructor);
+
+    private async Task ToggleCategoryAsync(CategoryManagementRowDto row)
+    {
+        EditCategory(row);
+        _categoryModel.IsActive = !row.IsActive;
+        await SaveCategoryAsync();
+    }
+
+    private async Task ToggleCourseTypeAsync(CourseTypeManagementRowDto row)
+    {
+        EditCourseType(row);
+        _courseTypeModel.IsActive = !row.IsActive;
+        await SaveCourseTypeAsync();
+    }
+
+    private async Task ToggleVenueAsync(VenueManagementRowDto row)
+    {
+        EditVenue(row);
+        _venueModel.IsActive = !row.IsActive;
+        await SaveVenueAsync();
+    }
+
+    private async Task ToggleCycleAsync(CourseCycleManagementRowDto row)
+    {
+        EditCycle(row);
+        _cycleModel.IsActive = !row.IsActive;
+        await SaveCycleAsync();
+    }
+
+    private async Task ToggleAgeRuleAsync(AgeRuleManagementRowDto row)
+    {
+        EditAgeRule(row);
+        _ageRuleModel.IsActive = !row.IsActive;
+        await SaveAgeRuleAsync();
+    }
+
+    private async Task ToggleInstructorAsync(CourseInstructorManagementRowDto row)
+    {
+        EditInstructor(row);
+        _instructorModel.IsActive = !row.IsActive;
+        await SaveInstructorAsync();
+    }
+
+    private async Task ConfirmDeleteCategoryAsync(CategoryManagementRowDto row)
+        => await ConfirmAndRunAsync("Bereich löschen", $"Soll der Bereich '{row.Name}' wirklich gelöscht werden?", () => CatalogService.DeleteCategoryAsync(row.Id), "Bereich gelöscht.", PrepareNewCategory);
+
+    private async Task ConfirmDeleteCourseTypeAsync(CourseTypeManagementRowDto row)
+        => await ConfirmAndRunAsync("Unterkategorie löschen", $"Soll die Unterkategorie '{row.Name}' wirklich gelöscht werden?", () => CatalogService.DeleteCourseTypeAsync(row.Id), "Unterkategorie gelöscht.", PrepareNewCourseType);
+
+    private async Task ConfirmDeleteVenueAsync(VenueManagementRowDto row)
+        => await ConfirmAndRunAsync("Ort löschen", $"Soll der Ort '{row.Name}' wirklich gelöscht werden?", () => CatalogService.DeleteVenueAsync(row.Id), "Ort gelöscht.", PrepareNewVenue);
+
+    private async Task ConfirmDeleteCycleAsync(CourseCycleManagementRowDto row)
+        => await ConfirmAndRunAsync("Turnus löschen", $"Soll der Turnus '{row.Name}' wirklich gelöscht werden?", () => CatalogService.DeleteCycleAsync(row.Id), "Turnus gelöscht.", PrepareNewCycle);
+
+    private async Task ConfirmDeleteAgeRuleAsync(AgeRuleManagementRowDto row)
+        => await ConfirmAndRunAsync("Altersregel löschen", $"Soll die Altersregel '{row.Name}' wirklich gelöscht werden?", () => CatalogService.DeleteAgeRuleAsync(row.Id), "Altersregel gelöscht.", PrepareNewAgeRule);
+
+    private async Task ConfirmDeleteInstructorAsync(CourseInstructorManagementRowDto row)
+        => await ConfirmAndRunAsync("Kursleitung löschen", $"Soll die Kursleitung '{row.FullName}' wirklich gelöscht werden?", () => CatalogService.DeleteInstructorAsync(row.Id), "Kursleitung gelöscht.", PrepareNewInstructor);
+
+    private async Task RunCatalogActionAsync(Func<Task<Guid>> action, string successMessage, Action resetAction)
+    {
+        try
+        {
+            await action();
+            Snackbar.Add(successMessage, Severity.Success);
+            await ReloadAsync();
+            resetAction();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task ConfirmAndRunAsync(string title, string message, Func<Task> action, string successMessage, Action resetAction)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.Title)] = title,
+            [nameof(ConfirmDialog.Message)] = message,
+            [nameof(ConfirmDialog.ConfirmText)] = "Löschen",
+            [nameof(ConfirmDialog.ConfirmColor)] = Color.Error
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(string.Empty, parameters);
+        var result = await dialog.Result;
+        if (result?.Canceled != false)
+        {
+            return;
+        }
+
+        try
+        {
+            await action();
+            Snackbar.Add(successMessage, Severity.Info);
+            await ReloadAsync();
+            resetAction();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private static string BuildAgeRangeText(AgeRuleManagementRowDto row)
+    {
+        var unitLabel = BuildAgeUnitLabel(row.Unit);
+        return row switch
+        {
+            { MinimumValue: not null, MaximumValue: not null } => $"{row.MinimumValue} bis {row.MaximumValue} {unitLabel}",
+            { MinimumValue: not null } => $"Ab {row.MinimumValue} {unitLabel}",
+            { MaximumValue: not null } => $"Bis {row.MaximumValue} {unitLabel}",
+            _ => "Freie Regel"
+        };
+    }
+
+    private static string BuildAgeUnitLabel(string unit)
+        => unit.Equals("Months", StringComparison.OrdinalIgnoreCase) ? "Monate" : "Jahre";
+
+    private static int ResolveTabIndex(string? tab)
+    {
+        return (tab ?? string.Empty).ToLowerInvariant() switch
+        {
+            "categories" => 0,
+            "coursetypes" => 1,
+            "venues" => 2,
+            "cycles" => 3,
+            "agerules" => 4,
+            "instructors" => 5,
+            _ => 0
+        };
+    }
+
+    private static int NextSortOrder(IEnumerable<int>? values)
+    {
+        return values is null || !values.Any() ? 1 : values.Max() + 1;
+    }
+}

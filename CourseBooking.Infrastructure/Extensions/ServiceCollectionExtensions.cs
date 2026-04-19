@@ -51,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRegistrationAssignmentService, RegistrationAssignmentService>();
         services.AddScoped<IAdminDashboardService, AdminDashboardService>();
         services.AddScoped<IAdminCourseService, AdminCourseService>();
+        services.AddScoped<IAdminCatalogService, AdminCatalogService>();
         services.AddScoped<IAdminRegistrationService, AdminRegistrationService>();
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
         services.AddScoped<IEmailSenderService, FileSystemEmailSenderService>();

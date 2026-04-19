@@ -11,9 +11,9 @@ public sealed class CourseUpsertRequestValidator : AbstractValidator<CourseUpser
         RuleFor(x => x.CourseCategoryId).NotEmpty();
         RuleFor(x => x.CourseTypeId).NotEmpty();
         RuleFor(x => x.VenueId).NotEmpty();
+        RuleFor(x => x.CourseInstructorId).NotNull().WithMessage("Bitte waehlen Sie eine Kursleitung aus.");
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Description).NotEmpty();
-        RuleFor(x => x.InstructorName).NotEmpty().MaximumLength(120);
         RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Capacity).GreaterThan(0);
         RuleFor(x => x.StartDate).NotNull();
@@ -30,5 +30,9 @@ public sealed class CourseUpsertRequestValidator : AbstractValidator<CourseUpser
             .Empty()
             .When(x => x.RegistrationMode == CourseRegistrationMode.Internal)
             .WithMessage("Interne Kurse dürfen keinen externen Buchungslink haben.");
+        RuleFor(x => x.ExternalRegistrationUrl)
+            .NotEmpty()
+            .When(x => x.RegistrationMode == CourseRegistrationMode.External)
+            .WithMessage("Bitte hinterlegen Sie für externe Kurse einen Buchungslink.");
     }
 }

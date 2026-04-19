@@ -9,9 +9,11 @@
     <div class="page-header">
         <div>
             <MudText Typo="Typo.h4">Mailvorlagen</MudText>
-            <MudText Typo="Typo.body1">Platzhalter: <code>{{Name}}</code>, <code>{{Kursname}}</code>, <code>{{Bad}}</code>, <code>{{Wochentag}}</code>, <code>{{Uhrzeit}}</code>, <code>{{Turnus}}</code></MudText>
+            <MudText Typo="Typo.body1">Vorlagen für Eingangsbestätigung, Zusage, Warteliste und Absage mit sauber gepflegten Platzhaltern.</MudText>
         </div>
     </div>
+
+    <AdminNav />
 
     @if (_templates.Count == 0)
     {
@@ -19,16 +21,63 @@
     }
     else
     {
+        <div class="stats-grid stats-grid-wide">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Aktive Vorlagen</MudText>
+                <MudText Typo="Typo.h4">@_templates.Count(x => x.IsActive)</MudText>
+                <MudText Typo="Typo.body2">Werden aktuell für den Versand verwendet.</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Deaktivierte Vorlagen</MudText>
+                <MudText Typo="Typo.h4">@_templates.Count(x => !x.IsActive)</MudText>
+                <MudText Typo="Typo.body2">Bleiben gespeichert, werden aber nicht verwendet.</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Verfügbare Platzhalter</MudText>
+                <MudText Typo="Typo.h6">Name, Kursname, Bad, Wochentag, Uhrzeit, Turnus</MudText>
+                <MudText Typo="Typo.body2">Die Werte werden beim Mailversand automatisch ersetzt.</MudText>
+            </MudPaper>
+        </div>
+
         @foreach (var template in _templates)
         {
-            <MudPaper Class="pa-4 mb-4" Elevation="0">
-                <MudText Typo="Typo.h6">@template.DisplayName</MudText>
-                <MudText Typo="Typo.body2">@template.Description</MudText>
-                <MudTextField @bind-Value="template.SubjectTemplate" Label="Betreff" Class="mt-3" />
-                <MudTextField @bind-Value="template.BodyTemplate" Label="Inhalt" Lines="8" Class="mt-3" />
-                <MudSwitch T="bool" @bind-Value="template.IsActive" Color="Color.Primary" Class="mt-3">Vorlage aktiv</MudSwitch>
-                <div class="inline-actions" style="margin-top:1rem;">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(template))">Speichern</MudButton>
+            <MudPaper Class="pa-4 mb-4 surface-card" Elevation="0">
+                <div class="page-header">
+                    <div>
+                        <MudText Typo="Typo.h6">@template.DisplayName</MudText>
+                        <MudText Typo="Typo.body2">@template.Description</MudText>
+                    </div>
+                    <StatusBadge Text="@(template.IsActive ? "Aktiv" : "Inaktiv")" />
+                </div>
+
+                <div class="template-editor-grid">
+                    <div class="template-editor-main">
+                        <MudTextField @bind-Value="template.SubjectTemplate" Label="Betreff" Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="template.BodyTemplate" Label="Inhalt" Lines="10" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudSwitch T="bool" @bind-Value="template.IsActive" Color="Color.Primary" Class="mt-3">Vorlage aktiv</MudSwitch>
+
+                        <div class="inline-actions" style="margin-top:1rem;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(template))">Speichern</MudButton>
+                        </div>
+                    </div>
+
+                    <aside class="template-editor-side">
+                        <MudText Typo="Typo.subtitle2">Platzhalter</MudText>
+                        <div class="template-token-list">
+                            @foreach (var token in PlaceholderTokens)
+                            {
+                                <span>@token</span>
+                            }
+                        </div>
+
+                        <MudDivider Class="my-3" />
+
+                        <MudText Typo="Typo.subtitle2">Vorschau</MudText>
+                        <div class="template-preview">
+                            <strong>@BuildPreview(template.SubjectTemplate)</strong>
+                            <p>@BuildPreview(template.BodyTemplate)</p>
+                        </div>
+                    </aside>
                 </div>
             </MudPaper>
         }
@@ -36,6 +85,26 @@
 </section>
 
 @code {
+    private static readonly string[] PlaceholderTokens =
+    [
+        "{{Name}}",
+        "{{Kursname}}",
+        "{{Bad}}",
+        "{{Wochentag}}",
+        "{{Uhrzeit}}",
+        "{{Turnus}}"
+    ];
+
+    private static readonly IReadOnlyDictionary<string, string> PreviewTokens = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["{{Name}}"] = "Miriam Aigner",
+        ["{{Kursname}}"] = "Babyschwimmen Anfänger 0-4 Monate",
+        ["{{Bad}}"] = "Wellnessoase Hummelhof",
+        ["{{Wochentag}}"] = "Montag",
+        ["{{Uhrzeit}}"] = "12:00",
+        ["{{Turnus}}"] = "2. Turnus 2026"
+    };
+
     private readonly List<EmailTemplateModel> _templates = new();
 
     protected override async Task OnInitializedAsync()
@@ -58,6 +127,17 @@
     {
         await TemplateService.SaveAsync(new EmailTemplateEditDto(template.Id, template.Key, template.DisplayName, template.Description, template.SubjectTemplate, template.BodyTemplate, template.IsActive));
         Snackbar.Add("Vorlage gespeichert.", Severity.Success);
+    }
+
+    private static string BuildPreview(string template)
+    {
+        var preview = template;
+        foreach (var pair in PreviewTokens)
+        {
+            preview = preview.Replace(pair.Key, pair.Value, StringComparison.Ordinal);
+        }
+
+        return preview;
     }
 
     private sealed class EmailTemplateModel

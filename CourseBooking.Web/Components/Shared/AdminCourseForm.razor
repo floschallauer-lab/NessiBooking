@@ -1,0 +1,338 @@
+<MudPaper Class="pa-4 surface-card course-editor-card" Elevation="0">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h5">@Heading</MudText>
+            <MudText Typo="Typo.body2">@Lead</MudText>
+        </div>
+        <div class="inline-actions">
+            @if (!string.IsNullOrWhiteSpace(BackHref))
+            {
+                <MudButton Variant="Variant.Text" Href="@BackHref">Zurück zur Liste</MudButton>
+            }
+            @if (ShowResetAction)
+            {
+                <MudButton Variant="Variant.Text" OnClick="ResetAsync">@SecondaryActionText</MudButton>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorText))
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@ErrorText</MudAlert>
+    }
+
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+        Fehlende Auswahlwerte können jederzeit unter <MudLink Href="/admin/catalog">Stammdaten</MudLink> gepflegt werden.
+    </MudAlert>
+
+    @if (MissingMasterDataMessages.Count > 0)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
+            @foreach (var message in MissingMasterDataMessages)
+            {
+                <div>@message</div>
+            }
+        </MudAlert>
+    }
+
+    <div class="editor-section">
+        <MudText Typo="Typo.subtitle1">Grunddaten</MudText>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Model.Title" Label="Kurstitel" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Model.Description" Label="Beschreibung für Kunden" Lines="4" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Model.CustomerNotice" Label="Hinweis im Kundenbereich" Lines="2" />
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    <div class="editor-section">
+        <div class="page-header">
+            <div>
+                <MudText Typo="Typo.subtitle1">Zuordnung</MudText>
+                <MudText Typo="Typo.body2">Bereich und Unterkategorie werden fachlich zusammen geprüft.</MudText>
+            </div>
+            <div class="inline-actions">
+                <MudButton Variant="Variant.Text" Href="/admin/catalog?tab=courseTypes">Unterkategorien pflegen</MudButton>
+                <MudButton Variant="Variant.Text" Href="/admin/catalog?tab=categories">Bereiche pflegen</MudButton>
+            </div>
+        </div>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid" Label="Bereich" Value="@Model.CourseCategoryId" ValueChanged="OnCategoryChanged">
+                    @foreach (var item in Data.Categories)
+                    {
+                        <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid" Label="Unterkategorie" @bind-Value="Model.CourseTypeId" Disabled="@(!AvailableCourseTypes.Any())">
+                    @foreach (var item in AvailableCourseTypes)
+                    {
+                        <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid" Label="Ort / Bad" @bind-Value="Model.VenueId">
+                    @foreach (var item in Data.Venues)
+                    {
+                        <MudSelectItem T="Guid" Value="@item.Id">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudLink Href="/admin/catalog?tab=venues" Class="helper-link">Ort oder Bad fehlt? In Stammdaten anlegen.</MudLink>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid?" Label="Turnus" @bind-Value="Model.CourseCycleId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Kein Turnus</MudSelectItem>
+                    @foreach (var item in Data.Cycles)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudLink Href="/admin/catalog?tab=cycles" Class="helper-link">Turnus fehlt? In Stammdaten anlegen.</MudLink>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid?" Label="Altersregel" @bind-Value="Model.AgeRuleId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Regel</MudSelectItem>
+                    @foreach (var item in Data.AgeRules)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudLink Href="/admin/catalog?tab=ageRules" Class="helper-link">Altersregel fehlt? In Stammdaten anlegen.</MudLink>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid?" Label="Kursleitung" @bind-Value="Model.CourseInstructorId">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                    @foreach (var item in Data.Instructors)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudLink Href="/admin/catalog?tab=instructors" Class="helper-link">Kursleitung fehlt? In Stammdaten anlegen.</MudLink>
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    <div class="editor-section">
+        <MudText Typo="Typo.subtitle1">Organisatorische Daten</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudDatePicker Label="Startdatum" @bind-Date="_startDate" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudDatePicker Label="Enddatum" @bind-Date="_endDate" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="DayOfWeek" Label="Wochentag" @bind-Value="Model.DayOfWeek">
+                    @foreach (var day in Enum.GetValues<DayOfWeek>())
+                    {
+                        <MudSelectItem T="DayOfWeek" Value="@day">@UiLabels.Day(day)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTimePicker Label="Startzeit" @bind-Time="_startTime" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTimePicker Label="Endzeit" @bind-Time="_endTime" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="int" @bind-Value="Model.Capacity" Label="Plätze" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="decimal" @bind-Value="Model.Price" Label="Preis in Euro" />
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    <div class="editor-section">
+        <MudText Typo="Typo.subtitle1">Sichtbarkeit und Buchung</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudSelect T="CourseOfferingStatus" Label="Status" @bind-Value="Model.Status">
+                    @foreach (var item in Enum.GetValues<CourseOfferingStatus>())
+                    {
+                        <MudSelectItem T="CourseOfferingStatus" Value="@item">@UiLabels.CourseStatus(item)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="CourseRegistrationMode" Label="Buchungsart" @bind-Value="Model.RegistrationMode">
+                    <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.Internal">Intern</MudSelectItem>
+                    <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.External">Extern</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Model.ExternalRegistrationUrl" Label="Externer Buchungslink" Disabled="@(Model.RegistrationMode == CourseRegistrationMode.Internal)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" @bind-Value="Model.AllowWaitlistWhenFull" Color="Color.Primary">Warteliste erlauben, wenn intern kein Platz mehr frei ist</MudSwitch>
+            </MudItem>
+        </MudGrid>
+
+        @if (Model.RegistrationMode == CourseRegistrationMode.External)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                Externe Kurse brauchen einen Buchungslink. Interne Plätze dienen dann nur zur Übersicht.
+            </MudAlert>
+        }
+    </div>
+
+    <div class="inline-actions mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(IsBusy || !CanSubmit)" OnClick="SubmitAsync">@PrimaryActionText</MudButton>
+        @if (ShowResetAction)
+        {
+            <MudButton Variant="Variant.Text" Disabled="@IsBusy" OnClick="ResetAsync">@SecondaryActionText</MudButton>
+        }
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public CourseManagementDataDto Data { get; set; } = default!;
+    [Parameter, EditorRequired] public CourseUpsertRequest Model { get; set; } = default!;
+    [Parameter] public string Heading { get; set; } = "Kurs";
+    [Parameter] public string Lead { get; set; } = string.Empty;
+    [Parameter] public string PrimaryActionText { get; set; } = "Speichern";
+    [Parameter] public string SecondaryActionText { get; set; } = "Leeren";
+    [Parameter] public string? ErrorText { get; set; }
+    [Parameter] public string? BackHref { get; set; } = "/admin/courses";
+    [Parameter] public bool ShowResetAction { get; set; } = true;
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnSubmit { get; set; }
+    [Parameter] public EventCallback OnReset { get; set; }
+
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private TimeSpan? _startTime;
+    private TimeSpan? _endTime;
+    private CourseUpsertRequest? _syncedModel;
+
+    private IReadOnlyList<CategorizedLookupItemDto> AvailableCourseTypes => Data.CourseTypes
+        .Where(x => x.CategoryId == Model.CourseCategoryId)
+        .OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private IReadOnlyList<string> MissingMasterDataMessages
+    {
+        get
+        {
+            var messages = new List<string>();
+            if (Data.Categories.Count == 0)
+            {
+                messages.Add("Es gibt noch keine Bereiche. Bitte zuerst in den Stammdaten einen Bereich anlegen.");
+            }
+
+            if (Data.Venues.Count == 0)
+            {
+                messages.Add("Es gibt noch keinen Ort bzw. kein Bad. Bitte zuerst in den Stammdaten einen Ort anlegen.");
+            }
+
+            if (Data.Instructors.Count == 0)
+            {
+                messages.Add("Es gibt noch keine Kursleitung. Bitte zuerst in den Stammdaten eine Kursleitung anlegen.");
+            }
+
+            if (Model.CourseCategoryId != Guid.Empty && AvailableCourseTypes.Count == 0)
+            {
+                messages.Add("Zum gewählten Bereich gibt es noch keine Unterkategorie. Bitte zuerst eine passende Unterkategorie anlegen.");
+            }
+
+            return messages;
+        }
+    }
+
+    private bool CanSubmit =>
+        Data.Categories.Count > 0 &&
+        Data.Venues.Count > 0 &&
+        Data.Instructors.Count > 0 &&
+        AvailableCourseTypes.Count > 0;
+
+    protected override void OnParametersSet()
+    {
+        EnsureDefaultCategory();
+        EnsureDefaultVenue();
+        EnsureValidCourseType();
+        EnsureDefaultInstructor();
+
+        if (ReferenceEquals(_syncedModel, Model))
+        {
+            return;
+        }
+
+        _startDate = Model.StartDate?.ToDateTime(TimeOnly.MinValue);
+        _endDate = Model.EndDate?.ToDateTime(TimeOnly.MinValue);
+        _startTime = Model.StartTime?.ToTimeSpan();
+        _endTime = Model.EndTime?.ToTimeSpan();
+        _syncedModel = Model;
+    }
+
+    private Task OnCategoryChanged(Guid value)
+    {
+        Model.CourseCategoryId = value;
+        EnsureValidCourseType();
+        return Task.CompletedTask;
+    }
+
+    private async Task SubmitAsync()
+    {
+        Model.StartDate = _startDate.HasValue ? DateOnly.FromDateTime(_startDate.Value) : null;
+        Model.EndDate = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : null;
+        Model.StartTime = _startTime.HasValue ? TimeOnly.FromTimeSpan(_startTime.Value) : null;
+        Model.EndTime = _endTime.HasValue ? TimeOnly.FromTimeSpan(_endTime.Value) : null;
+        await OnSubmit.InvokeAsync();
+    }
+
+    private async Task ResetAsync()
+    {
+        await OnReset.InvokeAsync();
+        _syncedModel = null;
+    }
+
+    private void EnsureDefaultCategory()
+    {
+        if (Model.CourseCategoryId != Guid.Empty || Data.Categories.Count == 0)
+        {
+            return;
+        }
+
+        Model.CourseCategoryId = Data.Categories.First().Id;
+    }
+
+    private void EnsureValidCourseType()
+    {
+        if (AvailableCourseTypes.Any(x => x.Id == Model.CourseTypeId))
+        {
+            return;
+        }
+
+        Model.CourseTypeId = AvailableCourseTypes.FirstOrDefault()?.Id ?? Guid.Empty;
+    }
+
+    private void EnsureDefaultVenue()
+    {
+        if (Model.VenueId != Guid.Empty || Data.Venues.Count == 0)
+        {
+            return;
+        }
+
+        Model.VenueId = Data.Venues.First().Id;
+    }
+
+    private void EnsureDefaultInstructor()
+    {
+        if (Model.CourseInstructorId.HasValue || Data.Instructors.Count == 0)
+        {
+            return;
+        }
+
+        Model.CourseInstructorId = Data.Instructors.First().Id;
+    }
+}

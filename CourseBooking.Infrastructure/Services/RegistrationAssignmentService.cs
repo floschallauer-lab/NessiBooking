@@ -17,6 +17,23 @@ internal sealed class RegistrationAssignmentService(
     public async Task<AssignmentResultDto> AutoAssignAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         var registration = await LoadRegistrationAsync(registrationId, cancellationToken);
+        if (registration.Priorities.Count == 0)
+        {
+            throw new InvalidOperationException("Die Anmeldung enthält keine Prioritäten.");
+        }
+
+        if (registration.AssignedCourseOfferingId.HasValue &&
+            registration.AssignedCourseOffering is not null &&
+            (registration.Status == RegistrationStatus.Confirmed || registration.Status == RegistrationStatus.Reserved))
+        {
+            return new AssignmentResultDto(
+                true,
+                false,
+                registration.AssignedCourseOfferingId,
+                $"Bereits zugeordnet zu {registration.AssignedCourseOffering.Title}.",
+                [$"Bereits zugeordnet: {registration.AssignedCourseOffering.Title}"]);
+        }
+
         var protocol = new List<string>();
         CourseOffering? waitlistCandidate = null;
 
@@ -46,10 +63,13 @@ internal sealed class RegistrationAssignmentService(
             if (course.CourseType?.OnlyBookableOnce == true)
             {
                 var alreadyBooked = await dbContext.Registrations
+                    .Include(x => x.ChildParticipant)
                     .Include(x => x.AssignedCourseOffering)
                     .AnyAsync(x =>
                         x.Id != registration.Id &&
-                        x.ChildParticipantId == registration.ChildParticipantId &&
+                        x.ChildParticipant != null &&
+                        x.ChildParticipant.FullName == registration.ChildParticipant!.FullName &&
+                        x.ChildParticipant.BirthDate == registration.ChildParticipant.BirthDate &&
                         x.AssignedCourseOffering != null &&
                         (x.Status == RegistrationStatus.Confirmed || x.Status == RegistrationStatus.Reserved) &&
                         x.AssignedCourseOffering.CourseTypeId == course.CourseTypeId,
@@ -189,8 +209,10 @@ internal sealed class RegistrationAssignmentService(
     private async Task<Registration> LoadRegistrationAsync(Guid registrationId, CancellationToken cancellationToken)
     {
         return await dbContext.Registrations
+            .AsSplitQuery()
             .Include(x => x.Guardian)
             .Include(x => x.ChildParticipant)
+            .Include(x => x.AssignedCourseOffering)
             .Include(x => x.WaitlistEntries)
             .Include(x => x.Priorities)
                 .ThenInclude(x => x.CourseOffering!)

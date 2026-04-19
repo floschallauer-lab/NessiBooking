@@ -1,8 +1,17 @@
-# CourseBooking MVP
+# NessiBooking
 
-Schlanke Blazor-Server-Anwendung für Kursbuchungen mit Prioritätssystem, Adminbereich, Exporten und Seed-Daten.
+Kursbuchungs- und Anfrageanwendung fuer Schwimmkurse mit oeffentlichem Kundenbereich und einem bewusst einfachen Adminbereich fuer den taeglichen Betrieb.
 
-## Stack
+## Produktstand
+
+Die Anwendung ist auf zwei Zielgruppen ausgerichtet:
+
+- Eltern und Kunden, die Kurse schnell finden und anfragen wollen
+- Betreiber, die Kurse, Stammdaten und Anfragen ohne technische Huerden pflegen muessen
+
+Der Schwerpunkt liegt auf einer ruhigen, klaren und wartbaren Verwaltungsoberflaeche.
+
+## Technischer Stack
 
 - .NET 9 / ASP.NET Core
 - Blazor Server
@@ -15,83 +24,98 @@ Schlanke Blazor-Server-Anwendung für Kursbuchungen mit Prioritätssystem, Admin
 
 ## Projektstruktur
 
-- `CourseBooking.Web`: Blazor UI, Routing, Identity-Accountseiten, Export-Endpunkte
-- `CourseBooking.Application`: DTOs, Service-Verträge, Validierung, Konstanten
+- `CourseBooking.Web`: UI, Routing, Accountseiten, Export-Endpunkte
+- `CourseBooking.Application`: DTOs, Service-Vertraege, Validierung, Konstanten
 - `CourseBooking.Domain`: Fachmodelle und Enums
-- `CourseBooking.Infrastructure`: EF Core, Identity, Seeder, Services, Migrationen
+- `CourseBooking.Infrastructure`: Datenbank, Seeder, Migrationen, Services
 
-## Enthaltene MVP-Funktionen
+## Funktionsumfang
 
-- Öffentliche Kursübersicht mit Filtern nach Bereich, Typ, Ort, Turnus, Wochentag und freien Plätzen
-- Kursdetailseite mit Preis, Zeitraum, Kursleitung, Altersregel und Buchungsstatus
-- Anmeldeformular mit Prioritätenliste, Turnuspräferenz, DSGVO/AGB, Notiz und Bestätigungsseite
-- Prioritäts- und Regelprüfung über Application-/Infrastructure-Services
-- Automatische Kurszuordnung im Adminbereich mit Ergebnisprotokoll und Wartelistenlogik
-- Admin-Dashboard mit Kennzahlen
-- Kursverwaltung, Anmeldungsübersicht, Detailansicht, Statuswechsel, manuelle Zuweisung
-- Mailvorlagen mit Platzhaltern
-- CSV-Export und Druckansicht pro Kurs
-- Audit-Logging für Admin-Aktionen
-- Demo-Seed für Kurse, Orte, Turnusse, Altersregeln, Anmeldungen und Adminzugang
+### Kundenbereich
 
-## Schnellstart
+- Kursuebersicht mit Filtern fuer Bereich, Unterkategorie, Ort, Turnus, Wochentag und Buchbarkeit
+- Kursdetailseite mit lesbaren Namen statt internen IDs
+- Anfrageformular mit Prioritaeten, klarer Eingabefolge und verbesserter Uebersicht
+- Fachlich saubere Auswahl: Unterkategorien und Kurse passen sich an den gewaehlten Bereich an
 
-1. PostgreSQL starten:
+### Adminbereich
+
+- `Dashboard` mit Kennzahlen, offenen Anfragen und schnellen Einstiegen
+- `Kurse` fuer Suche, Filter, Bearbeitung, Aktiv/Inaktiv und Duplizieren
+- `Neueingabe Kurs` als eigene Seite fuer das bewusste Anlegen neuer Kurse
+- `Stammdaten` als zentraler Pflegeort fuer Dropdown-Vorlagen
+- `Anfragen` fuer Eingang, Statuspflege und Detailansicht
+- `Inhalte / Einstellungen` fuer Mailtexte und feste Hinweise
+
+### Stammdaten
+
+Der Stammdatenbereich bildet die Grundbausteine fuer Kursformulare ab:
+
+- Bereiche
+- Unterkategorien
+- Orte / Baeder
+- Turnusse
+- Altersregeln
+- Kursleitungen
+
+Alle Eintraege koennen zentral angelegt, bearbeitet, aktiviert/deaktiviert und kontrolliert geloescht werden.
+
+## Fachliche Logik
+
+- Unterkategorien sind fachlich an ihren Bereich gebunden
+- Diese Zuordnung wird im Frontend und Backend validiert
+- Fehlerhafte Kombinationen werden beim Anlegen und Bearbeiten von Kursen verhindert
+- Bestehende Daten werden beim Start ueber Seeder- und Migrationslogik auf den aktuellen Stand gebracht
+
+## Lokaler Start
+
+1. PostgreSQL starten
 
 ```bash
 docker compose up -d db
 ```
 
-2. Lösung bauen:
+2. Loesung bauen
 
 ```bash
-dotnet build CourseBooking.sln
+dotnet build CourseBooking.sln -v minimal
 ```
 
-3. Anwendung starten:
+3. Anwendung starten
 
 ```bash
 dotnet run --project CourseBooking.Web
 ```
 
-4. Browser öffnen:
+4. Danach die im Terminal ausgegebene URL oeffnen
 
-- Öffentlicher Bereich: `https://localhost:5001` oder die von `dotnet run` ausgegebene URL
-- Adminbereich: `/admin`
-
-## Demo-Admin
+## Demo-Login fuer Admins
 
 - E-Mail: `admin@coursebooking.local`
 - Passwort: `Admin1234`
 
-Die Werte können in `CourseBooking.Web/appsettings.json` unter `SeedAdmin` geändert werden.
+Die Seed-Daten lassen sich in `CourseBooking.Web/appsettings.json` anpassen.
 
-## Datenbank
-
-- Connection String: `CourseBooking.Web/appsettings.json`
-- Provider: PostgreSQL
-- Migrations: `CourseBooking.Infrastructure/Persistence/Migrations`
-
-Die erste Migration `InitialCreate` ist bereits enthalten. Beim Start führt der Seeder `Database.Migrate()` und die Demo-Befüllung automatisch aus.
-
-## E-Mail-Verhalten im MVP
-
-- E-Mails werden nicht real versendet.
-- Vorbereitete Nachrichten werden als Dateien unter `CourseBooking.Web/App_Data/SentEmails` abgelegt.
-- So lassen sich Eingangsbestätigung, Zusage, Warteliste und Absage lokal prüfen.
-
-## Wichtige URLs
+## Wichtige Seiten
 
 - `/`
 - `/courses/{id}`
 - `/register`
 - `/admin`
 - `/admin/courses`
+- `/admin/courses/new`
+- `/admin/catalog`
 - `/admin/registrations`
 - `/admin/templates`
 
-## Hinweise zum Weiterbau
+## Datenbank und Migrationen
 
-- Mandantenfähigkeit ist in der Architektur vorbereitet, aber noch nicht umgesetzt.
-- Für Produktion fehlen noch echtes Mail-Gateway, feinere Rollen/Rechte, CI/CD und härtere Sicherheitseinstellungen.
-- Das Prioritätssystem und die Fachregeln liegen bereits in Services und lassen sich dort gezielt erweitern.
+- Provider: PostgreSQL
+- Migrationspfad: `CourseBooking.Infrastructure/Persistence/Migrations`
+- Der Startprozess fuehrt Migrationen und Seed-Daten automatisch aus
+
+## Hinweise fuer den Betrieb
+
+- E-Mails werden lokal als Dateien unter `CourseBooking.Web/App_Data/SentEmails` abgelegt
+- Der Adminbereich ist auf moeglichst einfache Standardablaeufe ausgelegt
+- Fehlende Dropdown-Werte werden in `Stammdaten` gepflegt, nicht direkt in einzelnen Kursformularen

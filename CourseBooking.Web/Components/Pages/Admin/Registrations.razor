@@ -8,56 +8,95 @@
     <div class="page-header">
         <div>
             <MudText Typo="Typo.h4">Anmeldungen</MudText>
-            <MudText Typo="Typo.body1">Filtern, prüfen, exportieren und in die Detailansicht springen.</MudText>
+            <MudText Typo="Typo.body1">Eingänge filtern, Prioritäten prüfen und direkt in die Bearbeitung wechseln.</MudText>
         </div>
         <MudButton Variant="Variant.Outlined" Href="@BuildExportUrl()">CSV-Export</MudButton>
     </div>
 
+    <AdminNav />
+
     @if (_page is null)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <MudProgressCircular Indeterminate="true" Class="mt-6" />
     }
     else
     {
-        <MudPaper Class="pa-4 mb-4" Elevation="0">
+        <div class="stats-grid stats-grid-wide admin-summary-cards">
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Alle Anmeldungen</MudText>
+                <MudText Typo="Typo.h4">@_page.Summary.Total</MudText>
+                <MudText Typo="Typo.body2">@_page.Summary.Open offen</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Bestätigt</MudText>
+                <MudText Typo="Typo.h4">@_page.Summary.Confirmed</MudText>
+                <MudText Typo="Typo.body2">Fixe Zuweisungen</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Warteliste</MudText>
+                <MudText Typo="Typo.h4">@_page.Summary.Waitlisted</MudText>
+                <MudText Typo="Typo.body2">Benötigt Nachverfolgung</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.overline">Abgelehnt</MudText>
+                <MudText Typo="Typo.h4">@_page.Summary.Rejected</MudText>
+                <MudText Typo="Typo.body2">Abgeschlossene Fälle</MudText>
+            </MudPaper>
+        </div>
+
+        <MudPaper Class="pa-4 mt-4 mb-4 surface-card" Elevation="0">
+            <div class="page-header">
+                <div>
+                    <MudText Typo="Typo.h6">Liste eingrenzen</MudText>
+                    <MudText Typo="Typo.body2">Status, Kurs, Ort und Turnus helfen beim schnellen Vorsortieren.</MudText>
+                </div>
+                <div class="inline-actions">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Anwenden</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="ResetFilters">Zurücksetzen</MudButton>
+                </div>
+            </div>
+
             <MudGrid>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_searchText" Label="Suche" Placeholder="Name, Kind oder E-Mail" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
                     <MudSelect T="RegistrationStatus?" Label="Status" @bind-Value="_status">
-                        <MudSelectItem T="RegistrationStatus?" Value="@((RegistrationStatus?)null)">Alle</MudSelectItem>
+                        <MudSelectItem T="RegistrationStatus?" Value="@((RegistrationStatus?)null)">Alle Status</MudSelectItem>
                         @foreach (var status in Enum.GetValues<RegistrationStatus>())
                         {
-                            <MudSelectItem T="RegistrationStatus?" Value="@status">@status</MudSelectItem>
+                            <MudSelectItem T="RegistrationStatus?" Value="@status">@UiLabels.RegistrationState(status)</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="4">
                     <MudSelect T="Guid?" Label="Kurs" @bind-Value="_courseOfferingId">
-                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Kurse</MudSelectItem>
                         @foreach (var item in _page.Courses)
                         {
-                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                            <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="4">
                     <MudSelect T="Guid?" Label="Ort" @bind-Value="_venueId">
-                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Orte</MudSelectItem>
                         @foreach (var item in _page.Venues)
                         {
-                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                            <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="4">
                     <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId">
-                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Turnusse</MudSelectItem>
                         @foreach (var item in _page.Cycles)
                         {
-                            <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
+                            <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="4">
                     <MudSelect T="CourseRegistrationMode?" Label="Buchungsart" @bind-Value="_registrationMode">
                         <MudSelectItem T="CourseRegistrationMode?" Value="@((CourseRegistrationMode?)null)">Intern und extern</MudSelectItem>
                         <MudSelectItem T="CourseRegistrationMode?" Value="@CourseRegistrationMode.Internal">Nur intern</MudSelectItem>
@@ -65,31 +104,34 @@
                     </MudSelect>
                 </MudItem>
             </MudGrid>
-            <div class="inline-actions" style="margin-top:1rem;">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Filter anwenden</MudButton>
-                <MudButton Variant="Variant.Text" OnClick="ResetFilters">Zurücksetzen</MudButton>
-            </div>
         </MudPaper>
 
-        <MudPaper Class="pa-4" Elevation="0">
-            <MudTable Items="_page.Registrations" Dense="true" Hover="true">
+        <MudPaper Class="pa-4 surface-card" Elevation="0">
+            <MudTable Items="FilteredRegistrations" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
                 <HeaderContent>
-                    <MudTh>Datum</MudTh>
-                    <MudTh>Erwachsener</MudTh>
-                    <MudTh>Kind</MudTh>
+                    <MudTh>Eingang</MudTh>
+                    <MudTh>Familie</MudTh>
                     <MudTh>Status</MudTh>
                     <MudTh>Zugewiesen</MudTh>
                     <MudTh>Prioritäten</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
-                    <MudTd>@context.GuardianName</MudTd>
-                    <MudTd>@context.ChildName</MudTd>
-                    <MudTd><StatusBadge RegistrationState="@context.Status" /></MudTd>
-                    <MudTd>@(context.AssignedCourse ?? "-")</MudTd>
-                    <MudTd>@context.PrioritySummary</MudTd>
-                    <MudTd><MudButton Variant="Variant.Text" Href="@($"/admin/registrations/{context.Id}")">Details</MudButton></MudTd>
+                    <MudTd DataLabel="Eingang">@context.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+                    <MudTd DataLabel="Familie">
+                        <div>
+                            <strong>@context.GuardianName</strong>
+                            <MudText Typo="Typo.body2" Class="table-subtext">@context.ChildName · @context.Email</MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Status"><StatusBadge RegistrationState="@context.Status" /></MudTd>
+                    <MudTd DataLabel="Zugewiesen">@(context.AssignedCourse ?? "Noch offen")</MudTd>
+                    <MudTd DataLabel="Prioritäten">
+                        <MudText Typo="Typo.body2">@context.PrioritySummary</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Aktion">
+                        <MudButton Variant="Variant.Text" Href="@($"/admin/registrations/{context.Id}")">Öffnen</MudButton>
+                    </MudTd>
                 </RowTemplate>
             </MudTable>
         </MudPaper>
@@ -103,8 +145,13 @@
     private Guid? _venueId;
     private Guid? _cycleId;
     private CourseRegistrationMode? _registrationMode;
+    private string _searchText = string.Empty;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private IEnumerable<RegistrationRowDto> FilteredRegistrations => (_page?.Registrations ?? Array.Empty<RegistrationRowDto>())
+        .Where(MatchesSearch)
+        .ToList();
 
     private async Task LoadAsync()
     {
@@ -118,7 +165,19 @@
         _venueId = null;
         _cycleId = null;
         _registrationMode = null;
+        _searchText = string.Empty;
         await LoadAsync();
+    }
+
+    private bool MatchesSearch(RegistrationRowDto row)
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            return true;
+        }
+
+        return $"{row.GuardianName} {row.ChildName} {row.Email} {row.AssignedCourse} {row.PrioritySummary}"
+            .Contains(_searchText, StringComparison.OrdinalIgnoreCase);
     }
 
     private string BuildExportUrl()

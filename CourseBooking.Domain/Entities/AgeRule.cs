@@ -10,6 +10,7 @@ public sealed class AgeRule : EntityBase
     public int? MaximumValue { get; set; }
     public AgeUnit Unit { get; set; } = AgeUnit.Years;
     public string Notes { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
 
     public ICollection<CourseOffering> CourseOfferings { get; set; } = new List<CourseOffering>();
 }

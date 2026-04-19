@@ -13,6 +13,7 @@ public sealed class CourseBookingDbContext(DbContextOptions<CourseBookingDbConte
     public DbSet<Venue> Venues => Set<Venue>();
     public DbSet<CourseCycle> CourseCycles => Set<CourseCycle>();
     public DbSet<AgeRule> AgeRules => Set<AgeRule>();
+    public DbSet<CourseInstructor> CourseInstructors => Set<CourseInstructor>();
     public DbSet<CourseOffering> CourseOfferings => Set<CourseOffering>();
     public DbSet<Guardian> Guardians => Set<Guardian>();
     public DbSet<ChildParticipant> ChildParticipants => Set<ChildParticipant>();
@@ -67,6 +68,12 @@ public sealed class CourseBookingDbContext(DbContextOptions<CourseBookingDbConte
             entity.Property(x => x.Unit).HasConversion<string>().HasMaxLength(20);
         });
 
+        builder.Entity<CourseInstructor>(entity =>
+        {
+            entity.Property(x => x.FullName).HasMaxLength(160);
+            entity.Property(x => x.Description).HasMaxLength(400);
+        });
+
         builder.Entity<CourseOffering>(entity =>
         {
             entity.Property(x => x.Title).HasMaxLength(180);
@@ -93,6 +100,10 @@ public sealed class CourseBookingDbContext(DbContextOptions<CourseBookingDbConte
             entity.HasOne(x => x.AgeRule)
                 .WithMany(x => x.CourseOfferings)
                 .HasForeignKey(x => x.AgeRuleId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.CourseInstructor)
+                .WithMany(x => x.CourseOfferings)
+                .HasForeignKey(x => x.CourseInstructorId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 

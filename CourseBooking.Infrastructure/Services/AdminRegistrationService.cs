@@ -75,11 +75,19 @@ internal sealed class AdminRegistrationService(
                 string.Join(" | ", x.Priorities.OrderBy(p => p.PriorityOrder).Select(p => $"{p.PriorityOrder}. {p.CourseOffering!.Title}"))))
             .ToListAsync(cancellationToken);
 
+        var summary = new RegistrationAdminSummaryDto(
+            items.Count,
+            items.Count(x => x.Status == RegistrationStatus.Received || x.Status == RegistrationStatus.Reserved),
+            items.Count(x => x.Status == RegistrationStatus.Confirmed),
+            items.Count(x => x.Status == RegistrationStatus.Waitlisted),
+            items.Count(x => x.Status == RegistrationStatus.Rejected));
+
         return new RegistrationListPageDto(
             items,
             await dbContext.CourseOfferings.AsNoTracking().OrderBy(x => x.Title).Select(x => new LookupItemDto(x.Id, x.Title, null)).ToListAsync(cancellationToken),
             groupedVenues.Select(x => new LookupItemDto(x.Id, x.Label, null)).ToList(),
-            await dbContext.CourseCycles.AsNoTracking().OrderBy(x => x.SortOrder).Select(x => new LookupItemDto(x.Id, x.Name, null)).ToListAsync(cancellationToken));
+            await dbContext.CourseCycles.AsNoTracking().OrderBy(x => x.SortOrder).Select(x => new LookupItemDto(x.Id, x.Name, null)).ToListAsync(cancellationToken),
+            summary);
     }
 
     public async Task<RegistrationDetailDto?> GetRegistrationAsync(Guid id, CancellationToken cancellationToken = default)

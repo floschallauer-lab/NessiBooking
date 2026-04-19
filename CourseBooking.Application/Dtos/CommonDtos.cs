@@ -4,6 +4,8 @@ namespace CourseBooking.Application.Dtos;
 
 public sealed record LookupItemDto(Guid Id, string Label, string? SecondaryLabel = null);
 
+public sealed record CategorizedLookupItemDto(Guid Id, Guid CategoryId, string Label, string? SecondaryLabel = null);
+
 public sealed record StatusOptionDto(int Value, string Label);
 
 public sealed record CourseFilterDto(
@@ -17,7 +19,7 @@ public sealed record CourseFilterDto(
 
 public sealed record CatalogPageDto(
     IReadOnlyCollection<LookupItemDto> Categories,
-    IReadOnlyCollection<LookupItemDto> CourseTypes,
+    IReadOnlyCollection<CategorizedLookupItemDto> CourseTypes,
     IReadOnlyCollection<LookupItemDto> Venues,
     IReadOnlyCollection<LookupItemDto> Cycles,
     IReadOnlyCollection<CourseListItemDto> Courses);
@@ -66,6 +68,18 @@ public sealed record CourseDetailDto(
     bool AllowWaitlistWhenFull,
     string? ExternalRegistrationUrl,
     string CustomerNotice);
+
+public sealed record RegistrationCourseOptionDto(
+    Guid Id,
+    Guid CategoryId,
+    Guid CourseTypeId,
+    string Label);
+
+public sealed record RegistrationFormOptionsDto(
+    IReadOnlyCollection<LookupItemDto> Categories,
+    IReadOnlyCollection<CategorizedLookupItemDto> CourseTypes,
+    IReadOnlyCollection<LookupItemDto> Cycles,
+    IReadOnlyCollection<RegistrationCourseOptionDto> Courses);
 
 public sealed record RegistrationPriorityInputDto(Guid CourseOfferingId, int PriorityOrder);
 

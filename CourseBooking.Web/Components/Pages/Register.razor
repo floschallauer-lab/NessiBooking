@@ -9,8 +9,8 @@
 <section class="page-section">
     <div class="page-header">
         <div>
-            <MudText Typo="Typo.h4">Kursanmeldung</MudText>
-            <MudText Typo="Typo.body1">Wählen Sie mehrere Kursoptionen in Ihrer gewünschten Reihenfolge.</MudText>
+            <MudText Typo="Typo.h4">Kursanfrage senden</MudText>
+            <MudText Typo="Typo.body1">Bitte geben Sie Ihre Kontaktdaten an und wählen Sie Ihre Wunschkurse in Reihenfolge.</MudText>
         </div>
     </div>
 
@@ -19,101 +19,186 @@
         <MudAlert Severity="Severity.Error" Class="mb-4">@_globalError</MudAlert>
     }
 
-    <MudPaper Class="pa-4" Elevation="0">
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_model.GuardianFullName" Label="Name Erwachsener" Error="@HasError(nameof(_model.GuardianFullName))" ErrorText="@GetError(nameof(_model.GuardianFullName))" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_model.ChildFullName" Label="Name des Kindes" Error="@HasError(nameof(_model.ChildFullName))" ErrorText="@GetError(nameof(_model.ChildFullName))" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudDatePicker Label="Geburtsdatum des Kindes" Date="@_birthDate" DateChanged="OnBirthDateChanged" />
-                @if (HasError(nameof(_model.ChildBirthDate)))
-                {
-                    <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.ChildBirthDate))</MudText>
-                }
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid?" Label="Optionale Turnuswahl" @bind-Value="_model.PreferredCourseCycleId">
-                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Präferenz</MudSelectItem>
-                    @foreach (var cycle in _cycles)
-                    {
-                        <MudSelectItem T="Guid?" Value="@cycle.Id">@cycle.Label</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="_model.AddressLine1" Label="Adresse" Error="@HasError(nameof(_model.AddressLine1))" ErrorText="@GetError(nameof(_model.AddressLine1))" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_model.PostalCode" Label="PLZ" Error="@HasError(nameof(_model.PostalCode))" ErrorText="@GetError(nameof(_model.PostalCode))" />
-            </MudItem>
-            <MudItem xs="12" md="8">
-                <MudTextField @bind-Value="_model.City" Label="Ort" Error="@HasError(nameof(_model.City))" ErrorText="@GetError(nameof(_model.City))" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_model.PhoneNumber" Label="Telefonnummer" Error="@HasError(nameof(_model.PhoneNumber))" ErrorText="@GetError(nameof(_model.PhoneNumber))" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_model.Email" Label="E-Mail" Error="@HasError(nameof(_model.Email))" ErrorText="@GetError(nameof(_model.Email))" />
-            </MudItem>
-        </MudGrid>
-
-        <MudDivider Class="my-4" />
-        <div class="page-header">
-            <div>
-                <MudText Typo="Typo.h6">Prioritätenliste</MudText>
-                <MudText Typo="Typo.body2">Mehrere Kurswünsche, eindeutig und lückenlos sortiert.</MudText>
-            </div>
-            <MudButton Variant="Variant.Outlined" OnClick="AddPriority" Disabled="@(_priorities.Count >= _courseOptions.Count)">Priorität hinzufügen</MudButton>
-        </div>
-
-        @for (var i = 0; i < _priorities.Count; i++)
-        {
-            var row = _priorities[i];
-            <MudGrid Class="mb-2" @key="row.Key">
-                <MudItem xs="12" md="2">
-                    <MudTextField Value="@($"Priorität {row.PriorityOrder}")" ReadOnly="true" Label="Reihenfolge" />
-                </MudItem>
-                <MudItem xs="12" md="8">
-                    <MudSelect T="Guid?" Label="Kurswahl" Value="@row.CourseOfferingId" ValueChanged="@(value => SetPriorityCourse(row.Key, value))">
-                        @foreach (var option in _courseOptions)
+    <div class="account-form-grid">
+        <MudPaper Class="pa-4 surface-card" Elevation="0">
+            <div class="editor-section">
+                <MudText Typo="Typo.h6">1. Kontaktdaten</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_model.GuardianFullName" Label="Vor- und Nachname eines Elternteils" Error="@HasError(nameof(_model.GuardianFullName))" ErrorText="@GetError(nameof(_model.GuardianFullName))" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_model.ChildFullName" Label="Vor- und Nachname des Kindes" Error="@HasError(nameof(_model.ChildFullName))" ErrorText="@GetError(nameof(_model.ChildFullName))" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="Geburtsdatum des Kindes" Date="@_birthDate" DateChanged="OnBirthDateChanged" />
+                        @if (HasError(nameof(_model.ChildBirthDate)))
                         {
-                            <MudSelectItem T="Guid?" Value="@option.Id" @key="option.Id">@option.Label</MudSelectItem>
+                            <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.ChildBirthDate))</MudText>
                         }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="2" Class="d-flex align-center">
-                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => RemovePriority(row.Key))" Disabled="@(_priorities.Count == 1)">Entfernen</MudButton>
-                </MudItem>
-            </MudGrid>
-        }
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid?" Label="Gewünschter Turnus" @bind-Value="_model.PreferredCourseCycleId">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Präferenz</MudSelectItem>
+                            @foreach (var cycle in _cycles)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)cycle.Id)">@cycle.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_model.AddressLine1" Label="Straße und Hausnummer" Error="@HasError(nameof(_model.AddressLine1))" ErrorText="@GetError(nameof(_model.AddressLine1))" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_model.PostalCode" Label="PLZ" Error="@HasError(nameof(_model.PostalCode))" ErrorText="@GetError(nameof(_model.PostalCode))" />
+                    </MudItem>
+                    <MudItem xs="12" md="8">
+                        <MudTextField @bind-Value="_model.City" Label="Ort" Error="@HasError(nameof(_model.City))" ErrorText="@GetError(nameof(_model.City))" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_model.PhoneNumber" Label="Telefonnummer" Error="@HasError(nameof(_model.PhoneNumber))" ErrorText="@GetError(nameof(_model.PhoneNumber))" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_model.Email" Label="E-Mail-Adresse" Error="@HasError(nameof(_model.Email))" ErrorText="@GetError(nameof(_model.Email))" />
+                    </MudItem>
+                </MudGrid>
+            </div>
 
-        @if (HasError("Priorities"))
-        {
-            <MudText Typo="Typo.caption" Color="Color.Error">@GetError("Priorities")</MudText>
-        }
+            <div class="editor-section">
+                <div class="page-header">
+                    <div>
+                        <MudText Typo="Typo.h6">2. Wunschkurse auswählen</MudText>
+                        <MudText Typo="Typo.body2">Wählen Sie zuerst Bereich und Unterkategorie. Danach stehen nur passende Kurse zur Auswahl.</MudText>
+                    </div>
+                    <MudButton Variant="Variant.Outlined" OnClick="AddPriority" Disabled="@(!CanAddPriority)">Weitere Priorität</MudButton>
+                </div>
 
-        <MudDivider Class="my-4" />
-        <MudTextField @bind-Value="_model.Note" Label="Optionale Notiz" Lines="3" />
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid?" Label="Bereich" @bind-Value="_selectedCategoryId" @bind-Value:after="OnCategoryChangedAsync">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                            @foreach (var category in _categories)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)category.Id)">@category.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_selectedCourseTypeId" @bind-Value:after="OnCourseTypeChangedAsync" Disabled="@(!_selectedCategoryId.HasValue)">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                            @foreach (var courseType in AvailableCourseTypes)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)courseType.Id)">@courseType.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
 
-        <MudCheckBox @bind-Value="_model.TermsAccepted" Color="Color.Primary">AGB akzeptiert</MudCheckBox>
-        @if (HasError(nameof(_model.TermsAccepted)))
-        {
-            <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.TermsAccepted))</MudText>
-        }
-        <MudCheckBox @bind-Value="_model.PrivacyAccepted" Color="Color.Primary">DSGVO-Hinweise akzeptiert</MudCheckBox>
-        @if (HasError(nameof(_model.PrivacyAccepted)))
-        {
-            <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.PrivacyAccepted))</MudText>
-        }
+                @if (!_selectedCategoryId.HasValue)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                        Bitte wählen Sie zuerst einen Bereich.
+                    </MudAlert>
+                }
+                else if (!_selectedCourseTypeId.HasValue)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                        Bitte wählen Sie anschließend die passende Unterkategorie.
+                    </MudAlert>
+                }
+                else if (FilteredCourseOptions.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
+                        Für diese Auswahl sind aktuell keine intern anfragbaren Kurse vorhanden.
+                    </MudAlert>
+                }
 
-        <div class="inline-actions" style="margin-top:1.5rem;">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@_isSubmitting">Absenden</MudButton>
-            <MudButton Variant="Variant.Text" Href="/">Abbrechen</MudButton>
-        </div>
-    </MudPaper>
+                <div class="priority-stack mt-4">
+                    @for (var i = 0; i < _priorities.Count; i++)
+                    {
+                        var row = _priorities[i];
+                        var rowOptions = GetPriorityCourseOptions(row.Key);
+
+                        <MudPaper Class="pa-3 priority-card register-priority-row" Elevation="0" @key="row.Key">
+                            <MudGrid>
+                                <MudItem xs="12" md="2">
+                                    <MudTextField Value="@($"Priorität {row.PriorityOrder}")" ReadOnly="true" Label="Reihenfolge" />
+                                </MudItem>
+                                <MudItem xs="12" md="8">
+                                    <MudSelect T="Guid?" Label="Kurs auswählen" Value="@row.CourseOfferingId" ValueChanged="@(value => SetPriorityCourse(row.Key, value))" Disabled="@(!_selectedCourseTypeId.HasValue)">
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                                        @foreach (var option in rowOptions)
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)" @key="option.Id">@option.Label</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="2" Class="d-flex align-center">
+                                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => RemovePriority(row.Key))" Disabled="@(_priorities.Count == 1)">Entfernen</MudButton>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    }
+                </div>
+
+                @if (HasError("Priorities"))
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Error">@GetError("Priorities")</MudText>
+                }
+            </div>
+
+            <div class="editor-section">
+                <MudText Typo="Typo.h6">3. Abschließen</MudText>
+                <MudTextField @bind-Value="_model.Note" Label="Optionale Mitteilung an uns" Lines="3" />
+
+                <div class="checklist-stack mt-4">
+                    <MudCheckBox @bind-Value="_model.TermsAccepted" Color="Color.Primary">Ich akzeptiere die Teilnahmebedingungen.</MudCheckBox>
+                    @if (HasError(nameof(_model.TermsAccepted)))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.TermsAccepted))</MudText>
+                    }
+                    <MudCheckBox @bind-Value="_model.PrivacyAccepted" Color="Color.Primary">Ich habe die Datenschutz-Hinweise gelesen.</MudCheckBox>
+                    @if (HasError(nameof(_model.PrivacyAccepted)))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">@GetError(nameof(_model.PrivacyAccepted))</MudText>
+                    }
+                </div>
+
+                <div class="inline-actions mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@_isSubmitting">Anfrage absenden</MudButton>
+                    <MudButton Variant="Variant.Text" Href="/">Zurück zur Kursliste</MudButton>
+                </div>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 surface-card account-form-aside" Elevation="0">
+            <MudText Typo="Typo.h6">Ihre Übersicht</MudText>
+            <div class="account-quick-grid mt-3">
+                <div class="account-quick-link">
+                    <span>@_priorities.Count Prioritäten</span>
+                    <small>Je mehr passende Wünsche Sie angeben, desto leichter ist die Zuteilung.</small>
+                </div>
+                <div class="account-quick-link">
+                    <span>@(FilteredCourseOptions.Count) passende Kurse</span>
+                    <small>Die Liste passt sich direkt an Bereich und Unterkategorie an.</small>
+                </div>
+                <div class="account-quick-link">
+                    <span>Rückmeldung per E-Mail</span>
+                    <small>Nach dem Absenden prüfen wir die Anfrage und melden uns anschließend bei Ihnen.</small>
+                </div>
+            </div>
+
+            @if (_preselectedCourse is not null)
+            {
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.h6">Vorab ausgewählt</MudText>
+                <div class="account-quick-link mt-3 selected-course-card">
+                    <span>@_preselectedCourse.Label</span>
+                    <small>Dieser Kurs wurde bereits für die erste Priorität vorgemerkt.</small>
+                </div>
+            }
+        </MudPaper>
+    </div>
 </section>
 
 @code {
@@ -122,21 +207,51 @@
 
     private readonly RegistrationFormModel _model = new();
     private readonly List<PriorityRow> _priorities = new();
-    private Dictionary<string, string> _errors = new();
-    private List<LookupItemDto> _courseOptions = new();
+    private Dictionary<string, string> _errors = new(StringComparer.OrdinalIgnoreCase);
+    private List<LookupItemDto> _categories = new();
+    private List<CategorizedLookupItemDto> _courseTypes = new();
+    private List<RegistrationCourseOptionDto> _courseOptions = new();
     private List<LookupItemDto> _cycles = new();
+    private LookupItemDto? _preselectedCourse;
     private DateTime? _birthDate;
+    private Guid? _selectedCategoryId;
+    private Guid? _selectedCourseTypeId;
     private string? _globalError;
     private bool _isSubmitting;
 
+    private IReadOnlyList<CategorizedLookupItemDto> AvailableCourseTypes => _courseTypes
+        .Where(x => !_selectedCategoryId.HasValue || x.CategoryId == _selectedCategoryId.Value)
+        .OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private IReadOnlyList<RegistrationCourseOptionDto> FilteredCourseOptions => _courseOptions
+        .Where(x => (!_selectedCategoryId.HasValue || x.CategoryId == _selectedCategoryId.Value)
+            && (!_selectedCourseTypeId.HasValue || x.CourseTypeId == _selectedCourseTypeId.Value))
+        .OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private bool CanAddPriority => FilteredCourseOptions.Count > 0 && _priorities.Count < FilteredCourseOptions.Count;
+
     protected override async Task OnInitializedAsync()
     {
-        _courseOptions = (await CatalogService.GetInternalCourseOptionsAsync()).ToList();
-        _cycles = (await CatalogService.GetCycleOptionsAsync()).ToList();
+        var formOptions = await CatalogService.GetRegistrationFormOptionsAsync();
+        _categories = formOptions.Categories.ToList();
+        _courseTypes = formOptions.CourseTypes.ToList();
+        _courseOptions = formOptions.Courses.ToList();
+        _cycles = formOptions.Cycles.ToList();
+
         AddPriority();
-        if (CourseId.HasValue && _courseOptions.Any(x => x.Id == CourseId.Value))
+
+        if (CourseId.HasValue)
         {
-            _priorities[0].CourseOfferingId = CourseId.Value;
+            var selectedCourse = _courseOptions.FirstOrDefault(x => x.Id == CourseId.Value);
+            if (selectedCourse is not null)
+            {
+                _selectedCategoryId = selectedCourse.CategoryId;
+                _selectedCourseTypeId = selectedCourse.CourseTypeId;
+                _priorities[0].CourseOfferingId = selectedCourse.Id;
+                _preselectedCourse = new LookupItemDto(selectedCourse.Id, selectedCourse.Label);
+            }
         }
     }
 
@@ -147,6 +262,23 @@
             Key = Guid.NewGuid(),
             PriorityOrder = _priorities.Count + 1
         });
+    }
+
+    private Task OnCategoryChangedAsync()
+    {
+        if (_selectedCourseTypeId.HasValue && AvailableCourseTypes.All(x => x.Id != _selectedCourseTypeId.Value))
+        {
+            _selectedCourseTypeId = null;
+        }
+
+        PruneInvalidPrioritySelections();
+        return Task.CompletedTask;
+    }
+
+    private Task OnCourseTypeChangedAsync()
+    {
+        PruneInvalidPrioritySelections();
+        return Task.CompletedTask;
     }
 
     private void RemovePriority(Guid key)
@@ -170,6 +302,41 @@
         }
 
         row.CourseOfferingId = value;
+    }
+
+    private IReadOnlyList<RegistrationCourseOptionDto> GetPriorityCourseOptions(Guid rowKey)
+    {
+        var selectedCourseIds = _priorities
+            .Where(x => x.Key != rowKey && x.CourseOfferingId.HasValue)
+            .Select(x => x.CourseOfferingId!.Value)
+            .ToHashSet();
+
+        return FilteredCourseOptions
+            .Where(x =>
+            {
+                var currentValue = _priorities.FirstOrDefault(row => row.Key == rowKey)?.CourseOfferingId;
+                return x.Id == currentValue || !selectedCourseIds.Contains(x.Id);
+            })
+            .ToList();
+    }
+
+    private void PruneInvalidPrioritySelections()
+    {
+        var allowedCourseIds = FilteredCourseOptions.Select(x => x.Id).ToHashSet();
+        var seenCourseIds = new HashSet<Guid>();
+
+        foreach (var priority in _priorities)
+        {
+            if (!priority.CourseOfferingId.HasValue)
+            {
+                continue;
+            }
+
+            if (!allowedCourseIds.Contains(priority.CourseOfferingId.Value) || !seenCourseIds.Add(priority.CourseOfferingId.Value))
+            {
+                priority.CourseOfferingId = null;
+            }
+        }
     }
 
     private void NormalizePriorities()

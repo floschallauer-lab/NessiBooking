@@ -14,9 +14,10 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
         var rawCourseTypes = await dbContext.CourseTypes
             .AsNoTracking()
             .Where(x => x.IsActive)
-            .OrderBy(x => x.SortOrder)
+            .OrderBy(x => x.CourseCategoryId)
+            .ThenBy(x => x.SortOrder)
             .ThenBy(x => x.Name)
-            .Select(x => new LookupItemDto(x.Id, x.Name, null))
+            .Select(x => new CategorizedLookupItemDto(x.Id, x.CourseCategoryId, x.Name, null))
             .ToListAsync(cancellationToken);
         var rawVenues = await dbContext.Venues
             .AsNoTracking()
@@ -24,7 +25,19 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
             .OrderBy(x => x.Name)
             .Select(x => new LookupItemDto(x.Id, x.Name, null))
             .ToListAsync(cancellationToken);
-        var groupedCourseTypes = LookupGrouping.GroupByLabel(rawCourseTypes);
+        var groupedCourseTypeSets = rawCourseTypes
+            .GroupBy(x => new { x.CategoryId, Key = LookupGrouping.NormalizeLabelValue(x.Label) })
+            .Select(group =>
+            {
+                var canonical = group.OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).First();
+                return new
+                {
+                    Canonical = canonical,
+                    MemberIds = group.Select(x => x.Id).ToHashSet()
+                };
+            })
+            .ToList();
+        var groupedCourseTypes = groupedCourseTypeSets.Select(x => x.Canonical).ToList();
         var groupedVenues = LookupGrouping.GroupByLabel(rawVenues);
 
         var courseQuery = dbContext.CourseOfferings
@@ -52,7 +65,7 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
 
         if (filter.CourseTypeId.HasValue)
         {
-            var courseTypeIds = groupedCourseTypes.FirstOrDefault(x => x.Id == filter.CourseTypeId.Value)?.MemberIds;
+            var courseTypeIds = groupedCourseTypeSets.FirstOrDefault(x => x.Canonical.Id == filter.CourseTypeId.Value)?.MemberIds;
             if (courseTypeIds?.Count > 0)
             {
                 courseQuery = courseQuery.Where(x => courseTypeIds.Contains(x.CourseTypeId));
@@ -147,7 +160,12 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
         var internalCourses = courses.Count(x => x.RegistrationMode == CourseRegistrationMode.Internal);
         var externalCourses = courses.Count(x => x.RegistrationMode == CourseRegistrationMode.External);
         var bookableInternalCourses = courses.Count(x => CourseOfferingPolicy.IsPubliclyBookable(x, occupancy.GetValueOrDefault(x.Id)));
-        var soldOutCourses = courses.Count(x => CourseOfferingPolicy.IsOperationallySoldOut(x, occupancy.GetValueOrDefault(x.Id)));
+        var soldOutCourses = courses.Count(x =>
+            x.RegistrationMode == CourseRegistrationMode.Internal &&
+            (x.Status == CourseOfferingStatus.SoldOut || CourseOfferingPolicy.IsOperationallySoldOut(x, occupancy.GetValueOrDefault(x.Id))));
+        var externalSoldOutCourses = courses.Count(x =>
+            x.RegistrationMode == CourseRegistrationMode.External &&
+            x.Status == CourseOfferingStatus.SoldOut);
         var lowAvailability = courses.Count(x => CourseOfferingPolicy.HasLowAvailability(x, occupancy.GetValueOrDefault(x.Id)));
 
         var recentRegistrations = await registrationQuery
@@ -161,6 +179,19 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
                 x.Status,
                 x.AssignedCourseOffering != null ? x.AssignedCourseOffering.Title : null))
             .ToListAsync(cancellationToken);
+
+        var recentCourses = courses
+            .OrderByDescending(x => x.UpdatedUtc)
+            .ThenByDescending(x => x.CreatedUtc)
+            .Take(8)
+            .Select(x => new DashboardRecentCourseDto(
+                x.Id,
+                x.Title,
+                x.CourseCategory?.Name ?? "Ohne Bereich",
+                x.CourseType?.Name ?? "Ohne Unterkategorie",
+                x.UpdatedUtc ?? x.CreatedUtc,
+                x.Status))
+            .ToList();
 
         var attentionCourses = courses
             .Where(x => x.RegistrationMode == CourseRegistrationMode.Internal && x.Status == CourseOfferingStatus.Published)
@@ -198,7 +229,7 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
                 .ThenBy(x => x.Name)
                 .Select(x => new LookupItemDto(x.Id, x.Name, null))
                 .ToListAsync(cancellationToken),
-            groupedCourseTypes.Select(x => new LookupItemDto(x.Id, x.Label, null)).ToList(),
+            groupedCourseTypes,
             groupedVenues.Select(x => new LookupItemDto(x.Id, x.Label, null)).ToList(),
             await dbContext.CourseCycles.AsNoTracking()
                 .Where(x => x.IsActive)
@@ -213,6 +244,7 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
             externalCourses,
             bookableInternalCourses,
             soldOutCourses,
+            externalSoldOutCourses,
             lowAvailability,
             registrationStatusCounts
                 .OrderByDescending(x => x.Count)
@@ -238,6 +270,7 @@ internal sealed class AdminDashboardService(CourseBookingDbContext dbContext) : 
                 new("Extern", externalCourses, courseTotal)
             },
             attentionCourses,
+            recentCourses,
             recentRegistrations);
     }
 

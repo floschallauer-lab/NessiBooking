@@ -1,0 +1,44 @@
+@inject NavigationManager NavigationManager
+
+<nav class="admin-nav-grid" aria-label="Admin-Hauptbereiche">
+    @foreach (var item in Items)
+    {
+        <a class="admin-nav-card @(IsActive(item) ? "is-active" : string.Empty)" href="@item.Href">
+            <span class="admin-nav-card-title">@item.Title</span>
+            <small>@item.Description</small>
+        </a>
+    }
+</nav>
+
+@code {
+    private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Trim('/');
+
+    private static readonly IReadOnlyList<AdminNavItem> Items =
+    [
+        new("/admin", "Dashboard", "Übersicht, Kennzahlen und offene Aufgaben"),
+        new("/admin/courses", "Kurse", "Bestehende Kurse suchen, prüfen und bearbeiten"),
+        new("/admin/courses/new", "Neueingabe Kurs", "Neuen Kurs Schritt für Schritt anlegen"),
+        new("/admin/catalog", "Stammdaten", "Bereiche, Unterkategorien, Orte und Vorlagen pflegen"),
+        new("/admin/registrations", "Anfragen", "Anmeldungen prüfen und Status pflegen"),
+        new("/admin/templates", "Inhalte / Einstellungen", "Mailtexte und feste Hinweise verwalten")
+    ];
+
+    private bool IsActive(AdminNavItem item)
+    {
+        if (item.Href == "/admin")
+        {
+            return string.Equals(CurrentPath, item.Href, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (item.Href == "/admin/courses")
+        {
+            return CurrentPath.StartsWith("/admin/courses/", StringComparison.OrdinalIgnoreCase)
+                && !CurrentPath.StartsWith("/admin/courses/new", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(CurrentPath, "/admin/courses", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return CurrentPath.StartsWith(item.Href, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed record AdminNavItem(string Href, string Title, string Description);
+}

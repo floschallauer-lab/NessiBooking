@@ -1,3 +1,4 @@
+﻿using System.Net;
 using System.Text;
 using System.Text.Json;
 using CourseBooking.Application.Constants;
@@ -19,7 +20,7 @@ public sealed class DatabaseSeeder(
     IConfiguration configuration,
     ILogger<DatabaseSeeder> logger)
 {
-    private const string CatalogSyncToken = "NessieSync:2026-04-17-neutral-catalog-v2";
+    private const string CatalogSyncToken = "NessieSync:2026-04-17-neutral-catalog-v3-utf8";
     private const string SeedFilePath = "Seed/nessie-catalog-2026.json";
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -30,6 +31,7 @@ public sealed class DatabaseSeeder(
 
         if (await IsCatalogUpToDateAsync(cancellationToken))
         {
+            await EnsureCatalogSupportDataAsync(cancellationToken);
             return;
         }
 
@@ -41,7 +43,94 @@ public sealed class DatabaseSeeder(
         await SeedSampleRegistrationsAsync(cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await EnsureCatalogSupportDataAsync(cancellationToken);
         logger.LogInformation("Nessie catalog seeded with {CourseCount} course offerings.", snapshot.Courses.Count);
+    }
+
+    private async Task EnsureCatalogSupportDataAsync(CancellationToken cancellationToken)
+    {
+        var changed = false;
+
+        var inactiveAgeRules = await dbContext.AgeRules
+            .Where(x => !x.IsActive)
+            .ToListAsync(cancellationToken);
+        foreach (var ageRule in inactiveAgeRules)
+        {
+            ageRule.IsActive = true;
+            ageRule.UpdatedUtc = DateTime.UtcNow;
+            changed = true;
+        }
+
+        var instructors = await dbContext.CourseInstructors
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.FullName)
+            .ToListAsync(cancellationToken);
+        var instructorByName = instructors.ToDictionary(
+            x => NormalizeInstructorName(x.FullName),
+            x => x,
+            StringComparer.OrdinalIgnoreCase);
+
+        var normalizedInstructorNames = await dbContext.CourseOfferings
+            .AsNoTracking()
+            .Select(x => x.InstructorName)
+            .ToListAsync(cancellationToken);
+
+        var nextSortOrder = instructors.Count == 0 ? 1 : instructors.Max(x => x.SortOrder) + 1;
+        foreach (var instructorName in normalizedInstructorNames
+                     .Select(NormalizeInstructorName)
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+        {
+            if (instructorByName.ContainsKey(instructorName))
+            {
+                continue;
+            }
+
+            var instructor = new CourseInstructor
+            {
+                FullName = instructorName,
+                Description = "Automatisch aus bestehenden Kursen übernommen.",
+                SortOrder = nextSortOrder++,
+                IsActive = true
+            };
+
+            dbContext.CourseInstructors.Add(instructor);
+            instructorByName[instructorName] = instructor;
+            changed = true;
+        }
+
+        var offerings = await dbContext.CourseOfferings.ToListAsync(cancellationToken);
+        foreach (var offering in offerings)
+        {
+            var normalizedName = NormalizeInstructorName(offering.InstructorName);
+            if (!string.Equals(offering.InstructorName, normalizedName, StringComparison.Ordinal))
+            {
+                offering.InstructorName = normalizedName;
+                offering.UpdatedUtc = DateTime.UtcNow;
+                changed = true;
+            }
+
+            if (offering.CourseInstructorId.HasValue &&
+                instructorByName.Values.Any(x => x.Id == offering.CourseInstructorId.Value))
+            {
+                continue;
+            }
+
+            if (!instructorByName.TryGetValue(normalizedName, out var instructor))
+            {
+                continue;
+            }
+
+            offering.CourseInstructor = instructor;
+            offering.CourseInstructorId = instructor.Id;
+            offering.UpdatedUtc = DateTime.UtcNow;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task<bool> IsCatalogUpToDateAsync(CancellationToken cancellationToken)
@@ -60,6 +149,7 @@ public sealed class DatabaseSeeder(
         dbContext.ChildParticipants.RemoveRange(await dbContext.ChildParticipants.ToListAsync(cancellationToken));
         dbContext.AuditLogs.RemoveRange(await dbContext.AuditLogs.ToListAsync(cancellationToken));
         dbContext.CourseOfferings.RemoveRange(await dbContext.CourseOfferings.ToListAsync(cancellationToken));
+        dbContext.CourseInstructors.RemoveRange(await dbContext.CourseInstructors.ToListAsync(cancellationToken));
         dbContext.AgeRules.RemoveRange(await dbContext.AgeRules.ToListAsync(cancellationToken));
         dbContext.CourseTypes.RemoveRange(await dbContext.CourseTypes.ToListAsync(cancellationToken));
         dbContext.CourseCategories.RemoveRange(await dbContext.CourseCategories.ToListAsync(cancellationToken));
@@ -102,15 +192,17 @@ public sealed class DatabaseSeeder(
             })
             .ToDictionary(x => $"{x.CourseCategory!.Name}|{x.Name}", StringComparer.OrdinalIgnoreCase);
 
+        var usedVenueSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var venues = snapshot.Courses
             .GroupBy(x => BuildVenueLookupKey(x.VenueName, x.AddressLine1, x.PostalCode, x.City), StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
                 var first = group.First();
+                var slugBase = Slugify($"{FixImportedText(first.VenueName)}-{FixImportedText(first.PostalCode)}-{FixImportedText(first.City)}");
                 return new Venue
                 {
                     Name = FixImportedText(first.VenueName),
-                    Slug = Slugify($"{FixImportedText(first.VenueName)}-{FixImportedText(first.PostalCode)}-{FixImportedText(first.City)}"),
+                    Slug = EnsureUniqueSlug(slugBase, usedVenueSlugs),
                     AddressLine1 = FixImportedText(first.AddressLine1),
                     PostalCode = FixImportedText(first.PostalCode),
                     City = FixImportedText(first.City),
@@ -142,16 +234,31 @@ public sealed class DatabaseSeeder(
                     MinimumValue = first.MinimumValue,
                     MaximumValue = first.MaximumValue,
                     Unit = Enum.Parse<AgeUnit>(first.Unit, ignoreCase: true),
-                    Notes = "Regel aus Nessie-Katalog."
+                    Notes = "Regel aus Nessie-Katalog.",
+                    IsActive = true
                 };
             })
             .ToDictionary(x => $"{x.Name}|{x.MinimumValue}|{x.MaximumValue}|{x.Unit}", StringComparer.OrdinalIgnoreCase);
+
+        var instructors = snapshot.Courses
+            .Select(x => NormalizeInstructorName(x.InstructorName))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Select((name, index) => new CourseInstructor
+            {
+                FullName = name,
+                Description = "Kursleitung aus dem aktuellen Nessie-Katalog.",
+                SortOrder = index + 1,
+                IsActive = true
+            })
+            .ToDictionary(x => x.FullName, StringComparer.OrdinalIgnoreCase);
 
         dbContext.AddRange(categories.Values);
         dbContext.AddRange(types.Values);
         dbContext.AddRange(venues.Values);
         dbContext.AddRange(cycles.Values);
         dbContext.AddRange(ageRules.Values);
+        dbContext.AddRange(instructors.Values);
 
         foreach (var item in snapshot.Courses.OrderBy(x => x.StartDate).ThenBy(x => x.StartTime))
         {
@@ -161,6 +268,7 @@ public sealed class DatabaseSeeder(
             var ageRuleKey = item.AgeRule is null
                 ? null
                 : $"{FixImportedText(item.AgeRule.Name)}|{item.AgeRule.MinimumValue}|{item.AgeRule.MaximumValue}|{item.AgeRule.Unit}";
+            var instructorName = NormalizeInstructorName(item.InstructorName);
 
             dbContext.CourseOfferings.Add(new CourseOffering
             {
@@ -169,9 +277,10 @@ public sealed class DatabaseSeeder(
                 Venue = venues[venueKey],
                 CourseCycle = cycles[item.CycleCode],
                 AgeRule = ageRuleKey is null ? null : ageRules[ageRuleKey],
+                CourseInstructor = instructors[instructorName],
                 Title = FixImportedText(item.Title),
                 Description = FixImportedText(item.Description),
-                InstructorName = FixImportedText(item.InstructorName),
+                InstructorName = instructorName,
                 CustomerNotice = FixImportedText(item.CustomerNotice),
                 InternalNotes = $"{FixImportedText(item.InternalNotes)} | {CatalogSyncToken}".Trim(' ', '|'),
                 Price = item.Price,
@@ -461,6 +570,28 @@ public sealed class DatabaseSeeder(
         _ => "Kurse aus dem aktuellen Nessie-Katalog."
     };
 
+    private static string NormalizeInstructorName(string? value)
+    {
+        var normalized = FixImportedText(value ?? string.Empty);
+        return string.IsNullOrWhiteSpace(normalized) ? "Team Nessie" : normalized;
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> ImportedTextCorrections = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Anf?nger"] = "Anfänger",
+        ["Platzverf?gbarkeit"] = "Platzverfügbarkeit",
+        ["Best?tigung"] = "Bestätigung",
+        ["f?r"] = "für",
+        ["J?nner"] = "Jänner",
+        ["M?rz"] = "März",
+        ["?ber"] = "über",
+        ["2j?hrige"] = "2jährige",
+        ["3j?hrige"] = "3jährige",
+        ["2-4j?hrige"] = "2-4jährige",
+        ["4-5j?hrige"] = "4-5jährige",
+        [" O?"] = " OÖ"
+    };
+
     private static string FixImportedText(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -468,32 +599,27 @@ public sealed class DatabaseSeeder(
             return string.Empty;
         }
 
-        var normalized = value;
-        if (normalized.Contains("Ã", StringComparison.Ordinal) || normalized.Contains("â", StringComparison.Ordinal))
+        var normalized = WebUtility.HtmlDecode(value.Trim());
+        for (var attempt = 0; attempt < 2 && LooksMojibaked(normalized); attempt++)
         {
             normalized = Encoding.UTF8.GetString(Encoding.Latin1.GetBytes(normalized));
         }
 
-        if (normalized.Contains("\u00C3", StringComparison.Ordinal) || normalized.Contains("\u00E2", StringComparison.Ordinal))
+        foreach (var correction in ImportedTextCorrections)
         {
-            normalized = Encoding.UTF8.GetString(Encoding.Latin1.GetBytes(normalized));
+            normalized = normalized.Replace(correction.Key, correction.Value, StringComparison.Ordinal);
         }
 
         return normalized
-            .Replace("Anf?nger", "Anfänger", StringComparison.Ordinal)
-            .Replace("Platzverf?gbarkeit", "Platzverfügbarkeit", StringComparison.Ordinal)
-            .Replace("Best?tigung", "Bestätigung", StringComparison.Ordinal)
-            .Replace("f?r", "für", StringComparison.Ordinal)
-            .Replace("J?nner", "Jänner", StringComparison.Ordinal)
-            .Replace("M?rz", "März", StringComparison.Ordinal)
-            .Replace("?ber", "\u00FCber", StringComparison.Ordinal)
-            .Replace("2j?hrige", "2j\u00E4hrige", StringComparison.Ordinal)
-            .Replace("3j?hrige", "3j\u00E4hrige", StringComparison.Ordinal)
-            .Replace("2-4j?hrige", "2-4j\u00E4hrige", StringComparison.Ordinal)
-            .Replace("4-5j?hrige", "4-5j\u00E4hrige", StringComparison.Ordinal)
-            .Replace(" O?", " O\u00D6", StringComparison.Ordinal)
+            .Replace("Â°C", "°C", StringComparison.Ordinal)
+            .Replace("Â ", string.Empty, StringComparison.Ordinal)
             .Trim();
     }
+
+    private static bool LooksMojibaked(string value)
+        => value.Contains("Ã", StringComparison.Ordinal)
+           || value.Contains("â", StringComparison.Ordinal)
+           || value.Contains("Â", StringComparison.Ordinal);
 
     private static string BuildVenueLookupKey(string venueName, string addressLine1, string postalCode, string city)
     {
@@ -508,8 +634,8 @@ public sealed class DatabaseSeeder(
     private static string NormalizeLookupToken(string value)
     {
         var normalized = FixImportedText(value)
-            .Replace("–", "-", StringComparison.Ordinal)
-            .Replace("—", "-", StringComparison.Ordinal);
+            .Replace("â€“", "-", StringComparison.Ordinal)
+            .Replace("â€”", "-", StringComparison.Ordinal);
 
         normalized = string.Join(" ", normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         return normalized.ToUpperInvariant();
@@ -531,6 +657,19 @@ public sealed class DatabaseSeeder(
         }
 
         return normalized.Trim('-');
+    }
+
+    private static string EnsureUniqueSlug(string baseSlug, ISet<string> usedSlugs)
+    {
+        var candidate = string.IsNullOrWhiteSpace(baseSlug) ? "eintrag" : baseSlug;
+        var suffix = 2;
+        while (!usedSlugs.Add(candidate))
+        {
+            candidate = $"{baseSlug}-{suffix}";
+            suffix++;
+        }
+
+        return candidate;
     }
 
     private sealed record EmailTemplateDefinition(
@@ -584,3 +723,4 @@ public sealed class DatabaseSeeder(
         int? MaximumValue,
         string Unit);
 }
+

@@ -17,15 +17,19 @@ else
             </div>
             <div class="status-stack">
                 <StatusBadge CourseState="@_course.Status" />
-                <StatusBadge Text="@(_course.RegistrationMode == CourseRegistrationMode.External ? "Extern" : "Intern")" />
+                <StatusBadge Text="@UiLabels.RegistrationMode(_course.RegistrationMode)" />
             </div>
         </div>
 
         <div class="detail-grid">
             <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Kursbeschreibung</MudText>
                 <MudText Typo="Typo.body1">@_course.Description</MudText>
-                <MudDivider Class="my-3" />
-                <div class="catalog-meta">
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.h6">Wichtige Daten</MudText>
+                <div class="catalog-meta mt-3">
                     <MudText Typo="Typo.body2">Ort: @_course.VenueAddress</MudText>
                     <MudText Typo="Typo.body2">Tag: @_course.DayLabel</MudText>
                     <MudText Typo="Typo.body2">Uhrzeit: @_course.TimeLabel</MudText>
@@ -38,22 +42,32 @@ else
             </MudPaper>
 
             <MudPaper Class="pa-4 surface-card" Elevation="0">
-                <MudText Typo="Typo.h6">Buchungsstatus</MudText>
+                <MudText Typo="Typo.h6">Anmeldung</MudText>
                 <MudText Typo="Typo.body2">@GetAvailabilityLabel(_course)</MudText>
+
                 @if (!string.IsNullOrWhiteSpace(_course.CustomerNotice))
                 {
                     <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_course.CustomerNotice</MudAlert>
                 }
-                <div class="inline-actions" style="margin-top:1rem;">
+
+                <div class="catalog-chip-row mt-4">
+                    <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined">@GetPriceLabel(_course)</MudChip>
+                    @if (_course.RegistrationMode == CourseRegistrationMode.Internal)
+                    {
+                        <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined">@($"{_course.SeatsRemaining} freie Plätze")</MudChip>
+                    }
+                </div>
+
+                <div class="inline-actions mt-4">
                     @if (_course.IsPubliclyBookable)
                     {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={_course.Id}")">Zur Anmeldung</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={_course.Id}")">Intern anfragen</MudButton>
                     }
                     else if (_course.RegistrationMode == CourseRegistrationMode.External)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="@_course.ExternalRegistrationUrl" Target="_blank">Externe Anmeldung</MudButton>
                     }
-                    <MudButton Variant="Variant.Text" Href="/">Zur Übersicht</MudButton>
+                    <MudButton Variant="Variant.Text" Href="/">Zur Kursliste</MudButton>
                 </div>
             </MudPaper>
         </div>
@@ -75,16 +89,16 @@ else
     {
         if (course.RegistrationMode == CourseRegistrationMode.External)
         {
-            return "Die Anmeldung läuft extern über den angegebenen Anbieter.";
+            return "Die Anmeldung läuft über den externen Anbieter.";
         }
 
         if (course.IsPubliclyBookable)
         {
-            return "Der Kurs ist aktuell intern buchbar.";
+            return "Dieser Kurs kann direkt über unser Formular angefragt werden.";
         }
 
         return course.AllowWaitlistWhenFull
-            ? "Aktuell nur mehr Warteliste oder manuelle Prüfung."
-            : "Der Kurs ist derzeit nicht intern buchbar.";
+            ? "Aktuell ist nur eine Wartelisten-Anfrage möglich."
+            : "Dieser Kurs ist derzeit nicht intern anfragbar.";
     }
 }

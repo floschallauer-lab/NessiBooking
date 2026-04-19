@@ -7,6 +7,7 @@ public interface IPublicCatalogService
 {
     Task<CatalogPageDto> GetCatalogAsync(CourseFilterDto filter, CancellationToken cancellationToken = default);
     Task<CourseDetailDto?> GetCourseAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<RegistrationFormOptionsDto> GetRegistrationFormOptionsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<LookupItemDto>> GetInternalCourseOptionsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<LookupItemDto>> GetCycleOptionsAsync(CancellationToken cancellationToken = default);
 }
@@ -31,8 +32,26 @@ public interface IAdminCourseService
 {
     Task<CourseManagementDataDto> GetManagementDataAsync(CancellationToken cancellationToken = default);
     Task<CourseUpsertRequest?> GetCourseForEditAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<CourseUpsertRequest?> GetCourseForDuplicateAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Guid> SaveAsync(CourseUpsertRequest request, CancellationToken cancellationToken = default);
     Task ArchiveAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IAdminCatalogService
+{
+    Task<AdminCatalogDataDto> GetManagementDataAsync(CancellationToken cancellationToken = default);
+    Task<Guid> SaveCategoryAsync(CourseCategoryUpsertRequest request, CancellationToken cancellationToken = default);
+    Task DeleteCategoryAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Guid> SaveCourseTypeAsync(CourseTypeUpsertRequest request, CancellationToken cancellationToken = default);
+    Task DeleteCourseTypeAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Guid> SaveVenueAsync(VenueUpsertRequest request, CancellationToken cancellationToken = default);
+    Task DeleteVenueAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Guid> SaveCycleAsync(CourseCycleUpsertRequest request, CancellationToken cancellationToken = default);
+    Task DeleteCycleAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Guid> SaveAgeRuleAsync(AgeRuleUpsertRequest request, CancellationToken cancellationToken = default);
+    Task DeleteAgeRuleAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Guid> SaveInstructorAsync(CourseInstructorUpsertRequest request, CancellationToken cancellationToken = default);
+    Task DeleteInstructorAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
 public interface IAdminRegistrationService

@@ -9,84 +9,120 @@
 
 @if (_detail is null)
 {
-    <MudProgressCircular Indeterminate="true" />
+    <MudProgressCircular Indeterminate="true" Class="mt-6" />
 }
 else
 {
     <section class="page-section">
         <div class="page-header">
             <div>
-                <MudText Typo="Typo.h4">Anmeldung von @_detail.GuardianName</MudText>
-                <MudText Typo="Typo.body1">@_detail.ChildName · @_detail.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudText>
+                <MudText Typo="Typo.h4">Anmeldung öffnen</MudText>
+                <MudText Typo="Typo.body1">@_detail.GuardianName · @_detail.ChildName · @_detail.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudText>
             </div>
+            <MudButton Variant="Variant.Text" Href="/admin/registrations">Zur Liste zurück</MudButton>
+        </div>
+
+        <AdminNav />
+
+        <div class="page-header mt-4">
             <div class="status-stack">
                 <StatusBadge RegistrationState="@_detail.Status" />
+                @if (!string.IsNullOrWhiteSpace(_detail.AssignedCourseTitle))
+                {
+                    <StatusBadge Text="Zugewiesen" />
+                }
             </div>
         </div>
 
         <div class="detail-grid">
-            <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.h6">Stammdaten</MudText>
-                <div style="display:grid;gap:.5rem;">
-                    <MudText Typo="Typo.body2">Kind: @_detail.ChildName (@_detail.ChildBirthDate.ToString("dd.MM.yyyy"))</MudText>
-                    <MudText Typo="Typo.body2">Erwachsener: @_detail.GuardianName</MudText>
-                    <MudText Typo="Typo.body2">Adresse: @_detail.AddressLine1, @_detail.PostalCode @_detail.City</MudText>
-                    <MudText Typo="Typo.body2">Telefon: @_detail.PhoneNumber</MudText>
-                    <MudText Typo="Typo.body2">E-Mail: @_detail.Email</MudText>
-                    <MudText Typo="Typo.body2">Turnuspräferenz: @(_detail.PreferredCycle ?? "Keine")</MudText>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Angaben zur Familie</MudText>
+                <div class="account-summary admin-summary">
+                    <div class="account-summary-item">
+                        <MudText Typo="Typo.overline">Kind</MudText>
+                        <MudText Typo="Typo.h6">@_detail.ChildName</MudText>
+                        <MudText Typo="Typo.body2">Geburtsdatum: @_detail.ChildBirthDate.ToString("dd.MM.yyyy")</MudText>
+                    </div>
+                    <div class="account-summary-item">
+                        <MudText Typo="Typo.overline">Elternteil / Kontaktperson</MudText>
+                        <MudText Typo="Typo.h6">@_detail.GuardianName</MudText>
+                        <MudText Typo="Typo.body2">@_detail.Email</MudText>
+                    </div>
+                    <div class="account-summary-item">
+                        <MudText Typo="Typo.overline">Telefon</MudText>
+                        <MudText Typo="Typo.h6">@_detail.PhoneNumber</MudText>
+                        <MudText Typo="Typo.body2">@_detail.AddressLine1, @_detail.PostalCode @_detail.City</MudText>
+                    </div>
+                    <div class="account-summary-item">
+                        <MudText Typo="Typo.overline">Turnuswunsch</MudText>
+                        <MudText Typo="Typo.h6">@(_detail.PreferredCycle ?? "Keine Präferenz")</MudText>
+                        <MudText Typo="Typo.body2">Eingang: @_detail.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudText>
+                    </div>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(_detail.Note))
                 {
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_detail.Note</MudAlert>
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                        @_detail.Note
+                    </MudAlert>
                 }
 
-                <MudDivider Class="my-3" />
-                <MudText Typo="Typo.h6">Prioritäten</MudText>
-                <div style="display:grid;gap:.5rem;">
-                    @foreach (var priority in _detail.Priorities)
+                <MudText Typo="Typo.h6">Gewünschte Kurse</MudText>
+                <div class="dashboard-bars">
+                    @foreach (var priority in _detail.Priorities.OrderBy(x => x.PriorityOrder))
                     {
-                        <MudText Typo="Typo.body2">@priority.PriorityOrder. @priority.CourseLabel</MudText>
+                        <div class="account-quick-link">
+                            <span>Priorität @priority.PriorityOrder</span>
+                            <small>@priority.CourseLabel</small>
+                        </div>
                     }
                 </div>
             </MudPaper>
 
-            <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.h6">Disposition</MudText>
-                <MudText Typo="Typo.body2">Zugewiesen: @(_detail.AssignedCourseTitle ?? "Noch nicht zugewiesen")</MudText>
+            <MudPaper Class="pa-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Bearbeitung</MudText>
+                <MudText Typo="Typo.body2">Aktueller Kurs: @(_detail.AssignedCourseTitle ?? "Noch nicht zugewiesen")</MudText>
 
-                <div class="inline-actions" style="margin-top:1rem;">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AutoAssignAsync">Automatisch zuweisen</MudButton>
+                <div class="editor-section">
+                    <MudText Typo="Typo.subtitle1">Schnellaktion</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AutoAssignAsync">Automatisch zuweisen</MudButton>
                 </div>
 
-                <MudSelect T="Guid?" Label="Manuell in Kurs zuweisen" @bind-Value="_manualCourseId" Class="mt-4">
-                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
-                    @foreach (var item in _courseOptions)
-                    {
-                        <MudSelectItem T="Guid?" Value="@item.Id">@item.Label</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudButton Variant="Variant.Outlined" Class="mt-2" OnClick="ManualAssignAsync" Disabled="@(!_manualCourseId.HasValue)">Manuell zuweisen</MudButton>
+                <div class="editor-section">
+                    <MudText Typo="Typo.subtitle1">Manuelle Zuweisung</MudText>
+                    <MudSelect T="Guid?" Label="Kurs manuell auswählen" @bind-Value="_manualCourseId">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                        @foreach (var item in _courseOptions)
+                        {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Outlined" Class="mt-2" FullWidth="true" OnClick="ManualAssignAsync" Disabled="@(!_manualCourseId.HasValue)">Manuell zuweisen</MudButton>
+                </div>
 
-                <MudDivider Class="my-4" />
-                <MudSelect T="RegistrationStatus" Label="Status ändern" @bind-Value="_selectedStatus">
-                    @foreach (var item in Enum.GetValues<RegistrationStatus>())
-                    {
-                        <MudSelectItem T="RegistrationStatus" Value="@item">@item</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudButton Variant="Variant.Text" Class="mt-2" OnClick="SaveStatusAsync">Status speichern</MudButton>
+                <div class="editor-section">
+                    <MudText Typo="Typo.subtitle1">Status ändern</MudText>
+                    <MudSelect T="RegistrationStatus" Label="Neuer Status" @bind-Value="_selectedStatus">
+                        @foreach (var item in Enum.GetValues<RegistrationStatus>())
+                        {
+                            <MudSelectItem T="RegistrationStatus" Value="@item">@UiLabels.RegistrationState(item)</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Outlined" Class="mt-2" FullWidth="true" OnClick="SaveStatusAsync">Status speichern</MudButton>
+                </div>
 
-                <MudDivider Class="my-4" />
-                <MudTextField @bind-Value="_adminNotes" Label="Interne Admin-Notizen" Lines="6" />
-                <MudButton Variant="Variant.Text" Class="mt-2" OnClick="SaveNotesAsync">Notizen speichern</MudButton>
+                <div class="editor-section">
+                    <MudText Typo="Typo.subtitle1">Interne Notiz</MudText>
+                    <MudTextField @bind-Value="_adminNotes" Label="Nur für die Verwaltung sichtbar" Lines="6" />
+                    <MudButton Variant="Variant.Outlined" Class="mt-2" FullWidth="true" OnClick="SaveNotesAsync">Notiz speichern</MudButton>
+                </div>
             </MudPaper>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_detail.AssignmentProtocol))
         {
-            <MudPaper Class="pa-4 mt-4" Elevation="0">
-                <MudText Typo="Typo.h6">Ergebnisprotokoll</MudText>
+            <MudPaper Class="pa-4 mt-4 surface-card" Elevation="0">
+                <MudText Typo="Typo.h6">Protokoll</MudText>
                 <MudText Typo="Typo.body2" Style="white-space:pre-wrap;">@_detail.AssignmentProtocol</MudText>
             </MudPaper>
         }
@@ -161,7 +197,7 @@ else
     private async Task SaveNotesAsync()
     {
         await RegistrationService.UpdateAdminNotesAsync(Id, _adminNotes);
-        Snackbar.Add("Notizen gespeichert.", Severity.Success);
+        Snackbar.Add("Notiz gespeichert.", Severity.Success);
         await ReloadAsync();
     }
 }

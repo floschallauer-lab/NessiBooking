@@ -20,6 +20,9 @@ public sealed class CourseOffering : EntityBase
     public Guid? AgeRuleId { get; set; }
     public AgeRule? AgeRule { get; set; }
 
+    public Guid? CourseInstructorId { get; set; }
+    public CourseInstructor? CourseInstructor { get; set; }
+
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string InstructorName { get; set; } = string.Empty;

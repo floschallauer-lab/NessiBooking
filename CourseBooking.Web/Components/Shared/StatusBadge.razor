@@ -16,25 +16,12 @@
 
         if (CourseState.HasValue)
         {
-            return CourseState.Value switch
-            {
-                CourseOfferingStatus.Published => "Veröffentlicht",
-                CourseOfferingStatus.SoldOut => "Ausgebucht",
-                CourseOfferingStatus.Draft => "Entwurf",
-                CourseOfferingStatus.Archived => "Archiviert",
-                _ => "Status"
-            };
+            return UiLabels.CourseStatus(CourseState.Value);
         }
 
-        return RegistrationState switch
-        {
-            RegistrationStatus.Received => "Eingegangen",
-            RegistrationStatus.Reserved => "Vorgemerkt",
-            RegistrationStatus.Confirmed => "Bestätigt",
-            RegistrationStatus.Waitlisted => "Warteliste",
-            RegistrationStatus.Rejected => "Abgelehnt",
-            _ => "Status"
-        };
+        return RegistrationState.HasValue
+            ? UiLabels.RegistrationState(RegistrationState.Value)
+            : "Status";
     }
 
     private Color ResolveColor()

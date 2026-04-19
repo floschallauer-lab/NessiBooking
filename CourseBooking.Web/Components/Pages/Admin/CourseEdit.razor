@@ -1,0 +1,106 @@
+@page "/admin/courses/{Id:guid}/edit"
+@attribute [Authorize(Policy = PolicyNames.AdminOnly)]
+@inject CourseBooking.Application.Abstractions.IAdminCourseService CourseService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Kurs bearbeiten</PageTitle>
+
+<section class="page-section">
+    <div class="page-header">
+        <div>
+            <MudText Typo="Typo.h4">Kurs bearbeiten</MudText>
+            <MudText Typo="Typo.body1">Alle wesentlichen Angaben des Kurses sind in einer klaren, ruhigen Bearbeitungsmaske zusammengefasst.</MudText>
+        </div>
+    </div>
+
+    <AdminNav />
+
+    @if (_notFound)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-4">Der gewünschte Kurs wurde nicht gefunden.</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/admin/courses">Zur Kursverwaltung</MudButton>
+    }
+    else if (_data is null)
+    {
+        <MudProgressCircular Indeterminate="true" Class="mt-6" />
+    }
+    else
+    {
+        <AdminCourseForm
+            Data="_data"
+            Model="_model"
+            Heading="Kurs bearbeiten"
+            Lead="Änderungen werden direkt fachlich geprüft. Bereich und Unterkategorie müssen zueinander passen."
+            ErrorText="@_formError"
+            PrimaryActionText="Änderungen speichern"
+            SecondaryActionText="Neu laden"
+            BackHref="/admin/courses"
+            IsBusy="_isSaving"
+            OnSubmit="SaveAsync"
+            OnReset="ReloadModelAsync" />
+    }
+</section>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private CourseManagementDataDto? _data;
+    private CourseUpsertRequest _model = new();
+    private string? _formError;
+    private bool _isSaving;
+    private bool _notFound;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _data = await CourseService.GetManagementDataAsync();
+        await ReloadModelAsync();
+    }
+
+    private async Task ReloadModelAsync()
+    {
+        _formError = null;
+        var model = await CourseService.GetCourseForEditAsync(Id);
+        if (model is null)
+        {
+            _notFound = true;
+            return;
+        }
+
+        _notFound = false;
+        _model = model;
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            _isSaving = true;
+            _formError = null;
+            var savedId = await CourseService.SaveAsync(_model);
+            Snackbar.Add("Kurs gespeichert.", Severity.Success);
+
+            if (savedId != Id)
+            {
+                NavigationManager.NavigateTo($"/admin/courses/{savedId}/edit");
+                return;
+            }
+
+            await ReloadModelAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

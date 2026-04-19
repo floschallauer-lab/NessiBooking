@@ -9,7 +9,7 @@ internal static class LookupGrouping
     public static IReadOnlyCollection<GroupedLookup> GroupByLabel(IEnumerable<LookupItemDto> items)
     {
         return items
-            .GroupBy(x => NormalizeLabel(x.Label), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => NormalizeLabelValue(x.Label), StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
                 var first = group.OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).First();
@@ -19,7 +19,7 @@ internal static class LookupGrouping
             .ToList();
     }
 
-    private static string NormalizeLabel(string value)
+    public static string NormalizeLabelValue(string value)
     {
         return string.Join(
             " ",
