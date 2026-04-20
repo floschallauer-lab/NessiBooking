@@ -3,7 +3,7 @@
 @using System.Globalization
 @inject CourseBooking.Application.Abstractions.IAdminDashboardService DashboardService
 
-<PageTitle>Admin Übersicht</PageTitle>
+<PageTitle>Admin-Übersicht</PageTitle>
 
 <section class="page-section">
     <div class="page-header">
@@ -15,7 +15,12 @@
 
     <AdminNav />
 
-    @if (_summary is null)
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Erneut laden</MudButton>
+    }
+    else if (_summary is null)
     {
         <MudProgressCircular Indeterminate="true" Class="mt-6" />
     }
@@ -27,13 +32,13 @@
                     <MudText Typo="Typo.h6">Filter</MudText>
                     <MudText Typo="Typo.body2">Die Anzeige lässt sich auf einen Bereich, eine Unterkategorie oder einen Ort eingrenzen.</MudText>
                 </div>
-                <div class="inline-actions">
+                <MudStack Row="true" Spacing="1" Class="inline-actions">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Filter anwenden</MudButton>
                     <MudButton Variant="Variant.Text" OnClick="ResetFilters">Zurücksetzen</MudButton>
-                </div>
+                </MudStack>
             </div>
 
-            <MudGrid>
+            <MudGrid Spacing="2">
                 <MudItem xs="12" md="4">
                     <MudSelect T="Guid?" Label="Bereich" Value="@_categoryId" ValueChanged="OnCategoryChanged">
                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Bereiche</MudSelectItem>
@@ -124,54 +129,91 @@
 
         <div class="dashboard-grid dashboard-grid-lists">
             <MudPaper Class="pa-4 surface-card" Elevation="0">
-                <div class="page-header">
+                <MudStack Spacing="3">
                     <div>
                         <MudText Typo="Typo.h6">Schnell handeln</MudText>
                         <MudText Typo="Typo.body2">Die Standardaufgaben sollen ohne Umwege erreichbar sein.</MudText>
                     </div>
-                </div>
 
-                <div class="admin-action-grid">
-                    <a class="admin-quick-link" href="/admin/registrations">
-                        <span>Anmeldungen prüfen</span>
-                        <small>@_summary.OpenRegistrations offene Vorgänge</small>
-                    </a>
-                    <a class="admin-quick-link" href="/admin/courses">
-                        <span>Kurse pflegen</span>
-                        <small>@_summary.BookableInternalCourses interne Kurse aktuell buchbar</small>
-                    </a>
-                    <a class="admin-quick-link" href="/admin/courses/new">
-                        <span>Neuen Kurs anlegen</span>
-                        <small>Bewusst getrennte Eingabeseite für neue Angebote</small>
-                    </a>
-                    <a class="admin-quick-link" href="/admin/catalog">
-                        <span>Stammdaten ordnen</span>
-                        <small>Bereiche, Unterkategorien, Orte, Turnusse und Vorlagen</small>
-                    </a>
-                    <a class="admin-quick-link" href="/admin/templates">
-                        <span>Mailtexte prüfen</span>
-                        <small>Vorlagen für Zusagen, Warteliste und Ablehnungen</small>
-                    </a>
-                </div>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudCard Outlined="true" Class="surface-card">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">Anmeldungen prüfen</MudText>
+                                    <MudText Typo="Typo.body2">@_summary.OpenRegistrations offene Vorgänge</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/admin/registrations">Öffnen</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudCard Outlined="true" Class="surface-card">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">Kurse pflegen</MudText>
+                                    <MudText Typo="Typo.body2">@_summary.BookableInternalCourses interne Kurse aktuell buchbar</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/admin/courses">Öffnen</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudCard Outlined="true" Class="surface-card">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">Neuen Kurs anlegen</MudText>
+                                    <MudText Typo="Typo.body2">Bewusst getrennte Eingabeseite für neue Angebote</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/admin/courses/new">Öffnen</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudCard Outlined="true" Class="surface-card">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">Stammdaten ordnen</MudText>
+                                    <MudText Typo="Typo.body2">Bereiche, Unterkategorien, Orte, Turnusse und Vorlagen</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/admin/catalog">Öffnen</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudCard Outlined="true" Class="surface-card">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">Mailtexte prüfen</MudText>
+                                    <MudText Typo="Typo.body2">Vorlagen für Zusagen, Warteliste und Ablehnungen</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/admin/templates">Öffnen</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
 
-                <MudDivider Class="my-4" />
+                    <MudDivider />
 
-                <MudText Typo="Typo.h6">Statusverteilung</MudText>
-                <MudText Typo="Typo.body2" Class="mb-3">So verteilen sich die aktuell gefilterten Anmeldungen.</MudText>
-                <div class="dashboard-bars">
-                    @foreach (var row in _summary.RegistrationStatusDistribution)
-                    {
-                        <div class="dashboard-bar-row">
-                            <div class="dashboard-bar-head">
-                                <span>@row.Label</span>
-                                <strong>@row.Value</strong>
+                    <div>
+                        <MudText Typo="Typo.h6">Statusverteilung</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">So verteilen sich die aktuell gefilterten Anmeldungen.</MudText>
+                    </div>
+                    <div class="dashboard-bars">
+                        @foreach (var row in _summary.RegistrationStatusDistribution)
+                        {
+                            <div class="dashboard-bar-row">
+                                <div class="dashboard-bar-head">
+                                    <span>@row.Label</span>
+                                    <strong>@row.Value</strong>
+                                </div>
+                                <div class="dashboard-bar-track">
+                                    <div class="dashboard-bar-fill dashboard-tone-primary" style="@BuildBarStyle(row)"></div>
+                                </div>
                             </div>
-                            <div class="dashboard-bar-track">
-                                <div class="dashboard-bar-fill dashboard-tone-primary" style="@BuildBarStyle(row)"></div>
-                            </div>
-                        </div>
-                    }
-                </div>
+                        }
+                    </div>
+                </MudStack>
             </MudPaper>
 
             <MudPaper Class="pa-4 surface-card" Elevation="0">
@@ -194,7 +236,7 @@
             </MudPaper>
         </div>
 
-        <div class="dashboard-grid dashboard-grid-lists">
+        <div class="dashboard-grid dashboard-grid-lists dashboard-grid-tables">
             <MudPaper Class="pa-4 surface-card" Elevation="0">
                 <div class="page-header">
                     <div>
@@ -204,7 +246,7 @@
                     <MudButton Variant="Variant.Text" Href="/admin/courses">Zur Kursverwaltung</MudButton>
                 </div>
 
-                <MudTable Items="_summary.CoursesNeedingAttention" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                <MudTable Items="_summary.CoursesNeedingAttention" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm" HorizontalScrollbar="true">
                     <HeaderContent>
                         <MudTh>Kurs</MudTh>
                         <MudTh>Ort</MudTh>
@@ -251,7 +293,7 @@
                     <MudButton Variant="Variant.Text" Href="/admin/courses">Alle Kurse</MudButton>
                 </div>
 
-                <MudTable Items="_summary.RecentCourses" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                <MudTable Items="_summary.RecentCourses" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm" HorizontalScrollbar="true">
                     <HeaderContent>
                         <MudTh>Kurs</MudTh>
                         <MudTh>Bereich</MudTh>
@@ -285,7 +327,7 @@
                     <MudButton Variant="Variant.Text" Href="/admin/registrations">Alle Anmeldungen</MudButton>
                 </div>
 
-                <MudTable Items="_summary.RecentRegistrations" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                <MudTable Items="_summary.RecentRegistrations" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm" HorizontalScrollbar="true">
                     <HeaderContent>
                         <MudTh>Eingang</MudTh>
                         <MudTh>Familie</MudTh>
@@ -319,6 +361,7 @@
     private Guid? _cycleId;
     private CourseRegistrationMode? _registrationMode;
     private RegistrationStatus? _registrationStatus;
+    private string? _loadError;
 
     private IReadOnlyList<CategorizedLookupItemDto> AvailableCourseTypes => (_summary?.CourseTypes ?? Array.Empty<CategorizedLookupItemDto>())
         .Where(x => !_categoryId.HasValue || x.CategoryId == _categoryId.Value)
@@ -329,11 +372,20 @@
 
     private async Task LoadAsync()
     {
-        _summary = await DashboardService.GetSummaryAsync(
-            new AdminDashboardFilter(_categoryId, _courseTypeId, _venueId, _cycleId, _registrationMode, _registrationStatus));
+        try
+        {
+            _loadError = null;
+            _summary = await DashboardService.GetSummaryAsync(
+                new AdminDashboardFilter(_categoryId, _courseTypeId, _venueId, _cycleId, _registrationMode, _registrationStatus));
+        }
+        catch (Exception ex)
+        {
+            _summary = null;
+            _loadError = UiFeedback.FromException(ex, "Das Dashboard konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
     }
 
-    private async Task OnCategoryChanged(Guid? value)
+    private Task OnCategoryChanged(Guid? value)
     {
         _categoryId = value;
         if (_courseTypeId.HasValue && AvailableCourseTypes.All(x => x.Id != _courseTypeId.Value))
@@ -341,7 +393,7 @@
             _courseTypeId = null;
         }
 
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private async Task ResetFilters()

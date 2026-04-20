@@ -79,10 +79,20 @@ body::before {
 
 .page-header {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     justify-content: space-between;
     align-items: end;
     margin-bottom: 1rem;
+}
+
+.page-header > :first-child {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.page-header > :last-child {
+    flex: 0 1 auto;
 }
 
 .top-nav {
@@ -180,6 +190,10 @@ body::before {
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.dashboard-grid-tables {
+    grid-template-columns: 1fr;
+}
+
 .status-stack,
 .inline-actions {
     display: flex;
@@ -194,47 +208,17 @@ body::before {
     margin: 1rem 0 1.25rem;
 }
 
-.admin-nav-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 0.9rem;
-    margin: 1rem 0 1.25rem;
-}
-
-.admin-nav-card {
-    display: grid;
-    gap: 0.3rem;
-    padding: 1rem 1.1rem;
-    border-radius: 18px;
-    border: 1px solid var(--cb-border);
-    background: rgba(255, 255, 255, 0.78);
-    color: var(--cb-ink);
-    text-decoration: none;
+.admin-nav-tile {
+    height: 100%;
+    border-radius: 22px;
     box-shadow: var(--cb-shadow);
-    transition:
-        transform 0.18s ease,
-        background-color 0.18s ease,
-        border-color 0.18s ease;
 }
 
-.admin-nav-card:hover {
-    transform: translateY(-1px);
-    border-color: rgba(13, 95, 122, 0.18);
-}
-
-.admin-nav-card.is-active {
+.admin-nav-tile.is-active {
     border-color: rgba(13, 95, 122, 0.35);
     background:
-        linear-gradient(135deg, rgba(13, 95, 122, 0.12), rgba(224, 164, 88, 0.12)),
-        rgba(255, 255, 255, 0.92);
-}
-
-.admin-nav-card-title {
-    font-weight: 700;
-}
-
-.admin-nav-card small {
-    color: var(--cb-muted);
+        linear-gradient(135deg, rgba(13, 95, 122, 0.08), rgba(224, 164, 88, 0.08)),
+        rgba(255, 255, 255, 0.96);
 }
 
 .catalog-card,
@@ -535,30 +519,10 @@ body::before {
     align-self: start;
 }
 
-.admin-action-grid,
 .priority-stack,
 .checklist-stack {
     display: grid;
     gap: 0.9rem;
-}
-
-.admin-quick-link {
-    display: grid;
-    gap: 0.2rem;
-    padding: 1rem 1.1rem;
-    border-radius: 18px;
-    border: 1px solid var(--cb-border);
-    background: rgba(255, 255, 255, 0.76);
-    color: var(--cb-ink);
-    text-decoration: none;
-}
-
-.admin-quick-link span {
-    font-weight: 700;
-}
-
-.admin-quick-link small {
-    color: var(--cb-muted);
 }
 
 .editor-section {
@@ -604,14 +568,22 @@ body::before {
 }
 
 .catalog-card .mud-typography-h6,
-.surface-card strong,
 .surface-card .mud-typography-h6,
 .surface-card .mud-typography-body1,
 .table-subtext,
 .table-subline,
 .mud-alert {
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+}
+
+.dashboard-grid-tables strong,
+.dashboard-grid-tables .table-subtext,
+.dashboard-grid-tables .table-subline {
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
 }
 
 .admin-block {

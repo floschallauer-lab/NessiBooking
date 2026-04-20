@@ -138,7 +138,7 @@
                 <MudButton Variant="Variant.Outlined" Href="/admin/courses/new">Neueingabe öffnen</MudButton>
             </div>
 
-            <MudTable Items="FilteredCourses" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+            <MudTable Items="FilteredCourses" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm" HorizontalScrollbar="true">
                 <HeaderContent>
                     <MudTh>Kurs</MudTh>
                     <MudTh>Termin</MudTh>
@@ -280,7 +280,9 @@
 
     private bool MatchesCourseFilters(CourseManagementRowDto course)
     {
-        if (!_includeArchived && course.Archived)
+        var showingArchivedStatus = _statusFilter == CourseOfferingStatus.Archived;
+
+        if (!_includeArchived && !showingArchivedStatus && course.Archived)
         {
             return false;
         }
