@@ -94,42 +94,93 @@ else
             </MudPaper>
 
             <MudPaper Class="pa-4 surface-card" Elevation="0">
-                <MudText Typo="Typo.h6">Bearbeitung</MudText>
-                <MudText Typo="Typo.body2">Aktueller Kurs: @(_detail.AssignedCourseTitle ?? "Noch nicht zugewiesen")</MudText>
+                <MudStack Spacing="3">
+                    <div>
+                        <MudText Typo="Typo.h6">Bearbeitung</MudText>
+                        <MudText Typo="Typo.body2">Aktueller Kurs: @(_detail.AssignedCourseTitle ?? "Noch nicht zugewiesen")</MudText>
+                    </div>
 
-                <div class="editor-section">
-                    <MudText Typo="Typo.subtitle1">Schnellaktion</MudText>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AutoAssignAsync">Automatisch zuweisen</MudButton>
-                </div>
+                    <MudCard Outlined="true" Class="surface-card">
+                        <MudCardContent>
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.subtitle1">Schnellaktion</MudText>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           FullWidth="true"
+                                           Disabled="@_isWorking"
+                                           OnClick="AutoAssignAsync">
+                                    Automatisch zuweisen
+                                </MudButton>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
 
-                <div class="editor-section">
-                    <MudText Typo="Typo.subtitle1">Manuelle Zuweisung</MudText>
-                    <MudSelect T="Guid?" Label="Kurs manuell auswählen" @bind-Value="_manualCourseId">
-                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
-                        @foreach (var item in _courseOptions)
-                        {
-                                <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
-                        }
-                    </MudSelect>
-                    <MudButton Variant="Variant.Outlined" Class="mt-2" FullWidth="true" OnClick="ManualAssignAsync" Disabled="@(!_manualCourseId.HasValue)">Manuell zuweisen</MudButton>
-                </div>
+                    <MudCard Outlined="true" Class="surface-card">
+                        <MudCardContent>
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.subtitle1">Manuelle Zuweisung</MudText>
+                                <MudSelect T="Guid?"
+                                           Label="Kurs manuell auswählen"
+                                           @bind-Value="_manualCourseId"
+                                           Disabled="@_isWorking"
+                                           ToStringFunc="FormatCourseOption">
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                                    @foreach (var item in _courseOptions)
+                                    {
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Label</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudButton Variant="Variant.Outlined"
+                                           FullWidth="true"
+                                           Disabled="@(_isWorking || !_manualCourseId.HasValue)"
+                                           OnClick="ManualAssignAsync">
+                                    Manuell zuweisen
+                                </MudButton>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
 
-                <div class="editor-section">
-                    <MudText Typo="Typo.subtitle1">Status ändern</MudText>
-                    <MudSelect T="RegistrationStatus" Label="Neuer Status" @bind-Value="_selectedStatus">
-                        @foreach (var item in Enum.GetValues<RegistrationStatus>())
-                        {
-                            <MudSelectItem T="RegistrationStatus" Value="@item">@UiLabels.RegistrationState(item)</MudSelectItem>
-                        }
-                    </MudSelect>
-                    <MudButton Variant="Variant.Outlined" Class="mt-2" FullWidth="true" OnClick="SaveStatusAsync">Status speichern</MudButton>
-                </div>
+                    <MudCard Outlined="true" Class="surface-card">
+                        <MudCardContent>
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.subtitle1">Status ändern</MudText>
+                                <MudSelect T="RegistrationStatus"
+                                           Label="Neuer Status"
+                                           @bind-Value="_selectedStatus"
+                                           Disabled="@_isWorking">
+                                    @foreach (var item in Enum.GetValues<RegistrationStatus>())
+                                    {
+                                        <MudSelectItem T="RegistrationStatus" Value="@item">@UiLabels.RegistrationState(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudButton Variant="Variant.Outlined"
+                                           FullWidth="true"
+                                           Disabled="@_isWorking"
+                                           OnClick="SaveStatusAsync">
+                                    Status speichern
+                                </MudButton>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
 
-                <div class="editor-section">
-                    <MudText Typo="Typo.subtitle1">Interne Notiz</MudText>
-                    <MudTextField @bind-Value="_adminNotes" Label="Nur für die Verwaltung sichtbar" Lines="6" />
-                    <MudButton Variant="Variant.Outlined" Class="mt-2" FullWidth="true" OnClick="SaveNotesAsync">Notiz speichern</MudButton>
-                </div>
+                    <MudCard Outlined="true" Class="surface-card">
+                        <MudCardContent>
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.subtitle1">Interne Notiz</MudText>
+                                <MudTextField @bind-Value="_adminNotes"
+                                              Label="Nur für die Verwaltung sichtbar"
+                                              Lines="6"
+                                              Disabled="@_isWorking" />
+                                <MudButton Variant="Variant.Outlined"
+                                           FullWidth="true"
+                                           Disabled="@_isWorking"
+                                           OnClick="SaveNotesAsync">
+                                    Notiz speichern
+                                </MudButton>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                </MudStack>
             </MudPaper>
         </div>
 
@@ -153,6 +204,7 @@ else
     private string _adminNotes = string.Empty;
     private string? _loadError;
     private bool _notFound;
+    private bool _isWorking;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -193,6 +245,7 @@ else
     {
         try
         {
+            _isWorking = true;
             var result = await AssignmentService.AutoAssignAsync(Id);
             Snackbar.Add(result.Summary, Severity.Success);
             await ReloadAsync();
@@ -200,6 +253,10 @@ else
         catch (Exception ex)
         {
             Snackbar.Add(UiFeedback.FromException(ex, "Die automatische Zuweisung konnte nicht durchgeführt werden. Bitte versuchen Sie es erneut."), Severity.Error);
+        }
+        finally
+        {
+            _isWorking = false;
         }
     }
 
@@ -212,6 +269,7 @@ else
 
         try
         {
+            _isWorking = true;
             await AssignmentService.ManualAssignAsync(Id, _manualCourseId.Value, "Manuelle Zuweisung im Adminbereich");
             Snackbar.Add("Teilnehmer wurde zugewiesen.", Severity.Success);
             await ReloadAsync();
@@ -220,12 +278,17 @@ else
         {
             Snackbar.Add(UiFeedback.FromException(ex, "Die manuelle Zuweisung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
         }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private async Task SaveStatusAsync()
     {
         try
         {
+            _isWorking = true;
             await RegistrationService.UpdateStatusAsync(Id, _selectedStatus, null);
             Snackbar.Add("Status gespeichert.", Severity.Success);
             await ReloadAsync();
@@ -234,12 +297,17 @@ else
         {
             Snackbar.Add(UiFeedback.FromException(ex, "Der Status konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
         }
+        finally
+        {
+            _isWorking = false;
+        }
     }
 
     private async Task SaveNotesAsync()
     {
         try
         {
+            _isWorking = true;
             await RegistrationService.UpdateAdminNotesAsync(Id, _adminNotes);
             Snackbar.Add("Notiz gespeichert.", Severity.Success);
             await ReloadAsync();
@@ -248,5 +316,12 @@ else
         {
             Snackbar.Add(UiFeedback.FromException(ex, "Die Notiz konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
         }
+        finally
+        {
+            _isWorking = false;
+        }
     }
+
+    private string FormatCourseOption(Guid? id)
+        => !id.HasValue ? string.Empty : (_courseOptions.FirstOrDefault(x => x.Id == id.Value)?.Label ?? string.Empty);
 }

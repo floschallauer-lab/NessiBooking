@@ -36,6 +36,7 @@ Der Schwerpunkt liegt auf einer ruhigen, klaren und wartbaren Verwaltungsoberfla
 - Kursuebersicht mit Filtern fuer Bereich, Unterkategorie, Ort, Turnus, Wochentag und Buchbarkeit
 - Kursdetailseite mit lesbaren Namen statt internen IDs
 - Anfrageformular mit Prioritaeten, klarer Eingabefolge und verbesserter Uebersicht
+- Bestaetigungsseite fuer gesendete Anfragen mit sauberer Rueckfuehrung zur Kursuebersicht
 - Fachlich saubere Auswahl: Unterkategorien und Kurse passen sich an den gewaehlten Bereich an
 - Robuste Formularlogik mit benutzerfreundlichen Fehlermeldungen statt roher Technik- oder Datenbankfehler
 
@@ -47,6 +48,8 @@ Der Schwerpunkt liegt auf einer ruhigen, klaren und wartbaren Verwaltungsoberfla
 - `Stammdaten` als zentraler Pflegeort fuer Dropdown-Vorlagen
 - `Anfragen` fuer Eingang, Statuspflege und Detailansicht
 - `Inhalte / Einstellungen` fuer Mailtexte und feste Hinweise
+- Listen und Dashboards mit konsistenter Tabellenlogik, ruhigerem Umbruch und horizontalem Scrollen statt abgeschnittener Inhalte
+- Bearbeitungsseiten mit staerkeren Busy-/Fehlerzustaenden und MudBlazor-orientierten Karten- und Formularmustern
 
 ### Stammdaten
 
@@ -122,3 +125,4 @@ Die Seed-Daten lassen sich in `CourseBooking.Web/appsettings.json` anpassen.
 - E-Mails werden lokal als Dateien unter `CourseBooking.Web/App_Data/SentEmails` abgelegt
 - Der Adminbereich ist auf moeglichst einfache Standardablaeufe ausgelegt
 - Fehlende Dropdown-Werte werden in `Stammdaten` gepflegt, nicht direkt in einzelnen Kursformularen
+- Die UI orientiert sich bewusst an MudBlazor-Standardmustern statt an individuellen Sonderloesungen

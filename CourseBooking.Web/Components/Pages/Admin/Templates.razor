@@ -15,7 +15,12 @@
 
     <AdminNav />
 
-    @if (_templates.Count == 0)
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_loadError</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Erneut laden</MudButton>
+    }
+    else if (_isLoading)
     {
         <MudProgressCircular Indeterminate="true" />
     }
@@ -52,13 +57,31 @@
 
                 <div class="template-editor-grid">
                     <div class="template-editor-main">
-                        <MudTextField @bind-Value="template.SubjectTemplate" Label="Betreff" Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="template.BodyTemplate" Label="Inhalt" Lines="10" Variant="Variant.Outlined" Class="mt-3" />
-                        <MudSwitch T="bool" @bind-Value="template.IsActive" Color="Color.Primary" Class="mt-3">Vorlage aktiv</MudSwitch>
-
-                        <div class="inline-actions" style="margin-top:1rem;">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(template))">Speichern</MudButton>
-                        </div>
+                        <MudStack Spacing="3">
+                            <MudTextField @bind-Value="template.SubjectTemplate"
+                                          Label="Betreff"
+                                          Variant="Variant.Outlined"
+                                          Disabled="@IsSaving(template.Id)" />
+                            <MudTextField @bind-Value="template.BodyTemplate"
+                                          Label="Inhalt"
+                                          Lines="10"
+                                          Variant="Variant.Outlined"
+                                          Disabled="@IsSaving(template.Id)" />
+                            <MudSwitch T="bool"
+                                       @bind-Value="template.IsActive"
+                                       Color="Color.Primary"
+                                       Disabled="@IsSaving(template.Id)">
+                                Vorlage aktiv
+                            </MudSwitch>
+                            <MudStack Row="true" Spacing="2" Class="inline-actions">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           Disabled="@IsSaving(template.Id)"
+                                           OnClick="@(() => SaveAsync(template))">
+                                    Speichern
+                                </MudButton>
+                            </MudStack>
+                        </MudStack>
                     </div>
 
                     <aside class="template-editor-side">
@@ -106,27 +129,60 @@
     };
 
     private readonly List<EmailTemplateModel> _templates = new();
+    private Guid? _savingTemplateId;
+    private string? _loadError;
+    private bool _isLoading;
 
     protected override async Task OnInitializedAsync()
     {
-        var templates = await TemplateService.GetTemplatesAsync();
-        _templates.Clear();
-        _templates.AddRange(templates.Select(x => new EmailTemplateModel
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
         {
-            Id = x.Id,
-            Key = x.Key,
-            DisplayName = x.DisplayName,
-            Description = x.Description,
-            SubjectTemplate = x.SubjectTemplate,
-            BodyTemplate = x.BodyTemplate,
-            IsActive = x.IsActive
-        }));
+            _isLoading = true;
+            _loadError = null;
+            var templates = await TemplateService.GetTemplatesAsync();
+            _templates.Clear();
+            _templates.AddRange(templates.Select(x => new EmailTemplateModel
+            {
+                Id = x.Id,
+                Key = x.Key,
+                DisplayName = x.DisplayName,
+                Description = x.Description,
+                SubjectTemplate = x.SubjectTemplate,
+                BodyTemplate = x.BodyTemplate,
+                IsActive = x.IsActive
+            }));
+        }
+        catch (Exception ex)
+        {
+            _loadError = UiFeedback.FromException(ex, "Die Mailvorlagen konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task SaveAsync(EmailTemplateModel template)
     {
-        await TemplateService.SaveAsync(new EmailTemplateEditDto(template.Id, template.Key, template.DisplayName, template.Description, template.SubjectTemplate, template.BodyTemplate, template.IsActive));
-        Snackbar.Add("Vorlage gespeichert.", Severity.Success);
+        try
+        {
+            _savingTemplateId = template.Id;
+            await TemplateService.SaveAsync(new EmailTemplateEditDto(template.Id, template.Key, template.DisplayName, template.Description, template.SubjectTemplate, template.BodyTemplate, template.IsActive));
+            Snackbar.Add("Vorlage gespeichert.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(UiFeedback.FromException(ex, "Die Vorlage konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."), Severity.Error);
+        }
+        finally
+        {
+            _savingTemplateId = null;
+        }
     }
 
     private static string BuildPreview(string template)
@@ -139,6 +195,8 @@
 
         return preview;
     }
+
+    private bool IsSaving(Guid templateId) => _savingTemplateId == templateId;
 
     private sealed class EmailTemplateModel
     {

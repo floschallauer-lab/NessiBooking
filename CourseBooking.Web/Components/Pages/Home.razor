@@ -4,36 +4,77 @@
 <PageTitle>NessiBooking</PageTitle>
 
 <section class="page-section">
-    <div class="hero-block">
-        <div class="hero-copy">
-            <MudText Typo="Typo.overline">Kurse einfach finden und anfragen</MudText>
-            <MudText Typo="Typo.h3" Class="mb-4">Passenden Kurs auswählen, in Ruhe vergleichen und direkt online anfragen.</MudText>
-            <MudText Typo="Typo.body1">Interne Kurse können direkt angefragt werden. Externe Kurse sind klar gekennzeichnet und führen direkt zum richtigen Anbieter.</MudText>
-            <div class="inline-actions mt-4">
-                <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary">Zur Anmeldung</MudButton>
-                <MudButton Href="#kursliste" Variant="Variant.Outlined">Kurse ansehen</MudButton>
-            </div>
-        </div>
-        <div class="hero-side">
-            <MudPaper Elevation="0" Class="pa-5 surface-card" Style="width:100%;max-width:380px;">
-                <MudText Typo="Typo.h6">So läuft es ab</MudText>
-                <div class="account-quick-grid mt-3">
-                    <div class="account-quick-link">
-                        <span>1. Kurs filtern</span>
-                        <small>Bereich, Unterkategorie, Ort und Turnus auswählen</small>
-                    </div>
-                    <div class="account-quick-link">
-                        <span>2. Wunschkurse merken</span>
-                        <small>Bei internen Kursen mehrere Prioritäten angeben</small>
-                    </div>
-                    <div class="account-quick-link">
-                        <span>3. Rückmeldung erhalten</span>
-                        <small>Sie bekommen die Bestätigung per E-Mail</small>
-                    </div>
-                </div>
-            </MudPaper>
-        </div>
-    </div>
+    <MudPaper Class="hero-shell" Elevation="0">
+        <MudGrid Spacing="4" Class="hero-grid">
+            <MudItem xs="12" lg="7">
+                <MudStack Spacing="3" Class="hero-main">
+                    <MudText Typo="Typo.overline" Class="hero-kicker">NessiBooking</MudText>
+                    <MudText Typo="Typo.h3" Class="hero-title">Passenden Kurs auswählen, in Ruhe vergleichen und direkt online anfragen.</MudText>
+                    <MudText Typo="Typo.body1" Class="hero-lead">Interne Kurse lassen sich direkt anfragen. Externe Kurse sind klar gekennzeichnet und führen ohne Umwege zum richtigen Anbieter.</MudText>
+
+                    <MudStack Row="true" Spacing="2" Class="hero-actions">
+                        <MudButton Href="/register"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.EditNote">
+                            Zur Anmeldung
+                        </MudButton>
+                        <MudButton Href="#kursliste"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Inherit"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Search">
+                            Kurse ansehen
+                        </MudButton>
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2" Class="hero-support">
+                        Ohne Konto, mit klarer Rückmeldung per E-Mail und sauberer Trennung zwischen interner Anfrage und externer Buchung.
+                    </MudText>
+                </MudStack>
+            </MudItem>
+
+            <MudItem xs="12" lg="5">
+                <MudCard Outlined="true" Class="hero-process-card">
+                    <MudCardContent>
+                        <MudText Typo="Typo.overline" Class="hero-process-kicker">So läuft es ab</MudText>
+                        <MudText Typo="Typo.h6" Class="mb-3">In drei klaren Schritten zur Anfrage</MudText>
+
+                        <MudStack Spacing="2">
+                            <div class="hero-step">
+                                <div class="hero-step-index">1</div>
+                                <div class="hero-step-copy">
+                                    <MudText Typo="Typo.subtitle2">Kurs eingrenzen</MudText>
+                                    <MudText Typo="Typo.body2">Bereich, Unterkategorie, Ort und Turnus so weit auswählen, wie es für Ihre Suche hilfreich ist.</MudText>
+                                </div>
+                            </div>
+
+                            <MudDivider />
+
+                            <div class="hero-step">
+                                <div class="hero-step-index">2</div>
+                                <div class="hero-step-copy">
+                                    <MudText Typo="Typo.subtitle2">Wunschkurse angeben</MudText>
+                                    <MudText Typo="Typo.body2">Bei internen Kursen können mehrere Prioritäten angegeben werden, damit die Zuteilung leichter fällt.</MudText>
+                                </div>
+                            </div>
+
+                            <MudDivider />
+
+                            <div class="hero-step">
+                                <div class="hero-step-index">3</div>
+                                <div class="hero-step-copy">
+                                    <MudText Typo="Typo.subtitle2">Rückmeldung erhalten</MudText>
+                                    <MudText Typo="Typo.body2">Nach dem Absenden prüfen wir die Anfrage und melden uns anschließend per E-Mail bei Ihnen.</MudText>
+                                </div>
+                            </div>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
 
     <MudPaper Class="pa-4 mb-4 surface-card" Elevation="0">
         <div class="page-header">
@@ -51,7 +92,7 @@
 
         <MudGrid>
             <MudItem xs="12" md="4">
-                <MudSelect T="Guid?" Label="Bereich" @bind-Value="_categoryId" @bind-Value:after="OnCategoryChangedAsync">
+                <MudSelect T="Guid?" Label="Bereich" @bind-Value="_categoryId" @bind-Value:after="OnCategoryChangedAsync" ToStringFunc="FormatCategory">
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Bereiche</MudSelectItem>
                     @foreach (var item in _catalog?.Categories ?? Array.Empty<LookupItemDto>())
                     {
@@ -60,7 +101,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_courseTypeId" Disabled="@(!AvailableCourseTypes.Any())">
+                <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_courseTypeId" Disabled="@(!AvailableCourseTypes.Any())" ToStringFunc="FormatCourseType">
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Unterkategorien</MudSelectItem>
                     @foreach (var item in AvailableCourseTypes)
                     {
@@ -69,7 +110,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudSelect T="Guid?" Label="Ort / Bad" @bind-Value="_venueId">
+                <MudSelect T="Guid?" Label="Ort / Bad" @bind-Value="_venueId" ToStringFunc="FormatVenue">
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Orte</MudSelectItem>
                     @foreach (var item in _catalog?.Venues ?? Array.Empty<LookupItemDto>())
                     {
@@ -78,7 +119,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId">
+                <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId" ToStringFunc="FormatCycle">
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Turnusse</MudSelectItem>
                     @foreach (var item in _catalog?.Cycles ?? Array.Empty<LookupItemDto>())
                     {
@@ -285,4 +326,17 @@
 
         return course.AllowWaitlistWhenFull ? Color.Warning : Color.Default;
     }
+
+    private string FormatCategory(Guid? id) => FormatLookupLabel(id, _catalog?.Categories);
+
+    private string FormatCourseType(Guid? id) => id.HasValue
+        ? (_catalog?.CourseTypes.FirstOrDefault(x => x.Id == id.Value)?.Label ?? string.Empty)
+        : string.Empty;
+
+    private string FormatVenue(Guid? id) => FormatLookupLabel(id, _catalog?.Venues);
+
+    private string FormatCycle(Guid? id) => FormatLookupLabel(id, _catalog?.Cycles);
+
+    private static string FormatLookupLabel(Guid? id, IEnumerable<LookupItemDto>? items)
+        => !id.HasValue ? string.Empty : (items?.FirstOrDefault(x => x.Id == id.Value)?.Label ?? string.Empty);
 }

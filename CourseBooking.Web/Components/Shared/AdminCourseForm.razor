@@ -1,208 +1,331 @@
 <MudPaper Class="pa-4 surface-card course-editor-card" Elevation="0">
-    <div class="page-header">
-        <div>
-            <MudText Typo="Typo.h5">@Heading</MudText>
-            <MudText Typo="Typo.body2">@Lead</MudText>
-        </div>
-        <div class="inline-actions">
-            @if (!string.IsNullOrWhiteSpace(BackHref))
-            {
-                <MudButton Variant="Variant.Text" Href="@BackHref">Zurück zur Liste</MudButton>
-            }
-            @if (ShowResetAction)
-            {
-                <MudButton Variant="Variant.Text" OnClick="ResetAsync">@SecondaryActionText</MudButton>
-            }
-        </div>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(ErrorText))
-    {
-        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@ErrorText</MudAlert>
-    }
-
-    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
-        Fehlende Auswahlwerte können jederzeit unter <MudLink Href="/admin/catalog">Stammdaten</MudLink> gepflegt werden.
-    </MudAlert>
-
-    @if (MissingMasterDataMessages.Count > 0)
-    {
-        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
-            @foreach (var message in MissingMasterDataMessages)
-            {
-                <div>@message</div>
-            }
-        </MudAlert>
-    }
-
-    @if (InactiveSelectionMessages.Count > 0)
-    {
-        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
-            @foreach (var message in InactiveSelectionMessages)
-            {
-                <div>@message</div>
-            }
-        </MudAlert>
-    }
-
-    <div class="editor-section">
-        <MudText Typo="Typo.subtitle1">Grunddaten</MudText>
-        <MudGrid>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Model.Title" Label="Kurstitel" />
-            </MudItem>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Model.Description" Label="Beschreibung für Kunden" Lines="4" />
-            </MudItem>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Model.CustomerNotice" Label="Hinweis im Kundenbereich" Lines="2" />
-            </MudItem>
-        </MudGrid>
-    </div>
-
-    <div class="editor-section">
-        <div class="page-header">
-            <div>
-                <MudText Typo="Typo.subtitle1">Zuordnung</MudText>
-                <MudText Typo="Typo.body2">Bereich und Unterkategorie werden fachlich zusammen geprüft.</MudText>
+    <MudForm @ref="_form">
+        <MudStack Spacing="3">
+            <div class="page-header">
+                <div>
+                    <MudText Typo="Typo.h5">@Heading</MudText>
+                    <MudText Typo="Typo.body2">@Lead</MudText>
+                </div>
+                <MudStack Row="true" Spacing="1" Class="inline-actions">
+                    @if (!string.IsNullOrWhiteSpace(BackHref))
+                    {
+                        <MudButton Variant="Variant.Text" Href="@BackHref">Zurück zur Liste</MudButton>
+                    }
+                    @if (ShowResetAction)
+                    {
+                        <MudButton Variant="Variant.Text" OnClick="ResetAsync">@SecondaryActionText</MudButton>
+                    }
+                </MudStack>
             </div>
-            <div class="inline-actions">
-                <MudButton Variant="Variant.Text" Href="/admin/catalog?tab=courseTypes">Unterkategorien pflegen</MudButton>
-                <MudButton Variant="Variant.Text" Href="/admin/catalog?tab=categories">Bereiche pflegen</MudButton>
-            </div>
-        </div>
 
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid" Label="Bereich" Value="@Model.CourseCategoryId" ValueChanged="OnCategoryChanged">
-                    @foreach (var item in Data.Categories)
-                    {
-                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid" Label="Unterkategorie" @bind-Value="Model.CourseTypeId" Disabled="@(!AvailableCourseTypes.Any())">
-                    @foreach (var item in AvailableCourseTypes)
-                    {
-                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid" Label="Ort / Bad" @bind-Value="Model.VenueId">
-                    @foreach (var item in Data.Venues)
-                    {
-                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudLink Href="/admin/catalog?tab=venues" Class="helper-link">Ort oder Bad fehlt? In Stammdaten anlegen.</MudLink>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid?" Label="Turnus" @bind-Value="Model.CourseCycleId">
-                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Kein Turnus</MudSelectItem>
-                    @foreach (var item in Data.Cycles)
-                    {
-                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudLink Href="/admin/catalog?tab=cycles" Class="helper-link">Turnus fehlt? In Stammdaten anlegen.</MudLink>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid?" Label="Altersregel" @bind-Value="Model.AgeRuleId">
-                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Regel</MudSelectItem>
-                    @foreach (var item in Data.AgeRules)
-                    {
-                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudLink Href="/admin/catalog?tab=ageRules" Class="helper-link">Altersregel fehlt? In Stammdaten anlegen.</MudLink>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Guid?" Label="Kursleitung" @bind-Value="Model.CourseInstructorId">
-                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
-                    @foreach (var item in Data.Instructors)
-                    {
-                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudLink Href="/admin/catalog?tab=instructors" Class="helper-link">Kursleitung fehlt? In Stammdaten anlegen.</MudLink>
-            </MudItem>
-        </MudGrid>
-    </div>
+            @if (!string.IsNullOrWhiteSpace(ErrorText))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@ErrorText</MudAlert>
+            }
 
-    <div class="editor-section">
-        <MudText Typo="Typo.subtitle1">Organisatorische Daten</MudText>
-        <MudGrid>
-            <MudItem xs="12" md="4">
-                <MudDatePicker Label="Startdatum" @bind-Date="_startDate" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudDatePicker Label="Enddatum" @bind-Date="_endDate" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudSelect T="DayOfWeek" Label="Wochentag" @bind-Value="Model.DayOfWeek">
-                    @foreach (var day in Enum.GetValues<DayOfWeek>())
-                    {
-                        <MudSelectItem T="DayOfWeek" Value="@day">@UiLabels.Day(day)</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTimePicker Label="Startzeit" @bind-Time="_startTime" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTimePicker Label="Endzeit" @bind-Time="_endTime" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudNumericField T="int" @bind-Value="Model.Capacity" Label="Plätze" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudNumericField T="decimal" @bind-Value="Model.Price" Label="Preis in Euro" />
-            </MudItem>
-        </MudGrid>
-    </div>
-
-    <div class="editor-section">
-        <MudText Typo="Typo.subtitle1">Sichtbarkeit und Buchung</MudText>
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudSelect T="CourseOfferingStatus" Label="Status" @bind-Value="Model.Status">
-                    @foreach (var item in Enum.GetValues<CourseOfferingStatus>())
-                    {
-                        <MudSelectItem T="CourseOfferingStatus" Value="@item">@UiLabels.CourseStatus(item)</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="CourseRegistrationMode" Label="Buchungsart" @bind-Value="Model.RegistrationMode">
-                    <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.Internal">Intern</MudSelectItem>
-                    <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.External">Extern</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Model.ExternalRegistrationUrl" Label="Externer Buchungslink" Disabled="@(Model.RegistrationMode == CourseRegistrationMode.Internal)" />
-            </MudItem>
-            <MudItem xs="12">
-                <MudSwitch T="bool" @bind-Value="Model.AllowWaitlistWhenFull" Color="Color.Primary">Warteliste erlauben, wenn intern kein Platz mehr frei ist</MudSwitch>
-            </MudItem>
-        </MudGrid>
-
-        @if (Model.RegistrationMode == CourseRegistrationMode.External)
-        {
-            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
-                Externe Kurse brauchen einen Buchungslink. Interne Plätze dienen dann nur zur Übersicht.
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Fehlende Auswahlwerte koennen jederzeit unter <MudLink Href="/admin/catalog">Stammdaten</MudLink> gepflegt werden.
             </MudAlert>
-        }
-    </div>
 
-    <div class="inline-actions mt-4">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(IsBusy || !CanSubmit)" OnClick="SubmitAsync">@PrimaryActionText</MudButton>
-        @if (ShowResetAction)
-        {
-            <MudButton Variant="Variant.Text" Disabled="@IsBusy" OnClick="ResetAsync">@SecondaryActionText</MudButton>
-        }
-    </div>
+            @if (MissingMasterDataMessages.Count > 0)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    @foreach (var message in MissingMasterDataMessages)
+                    {
+                        <div>@message</div>
+                    }
+                </MudAlert>
+            }
+
+            @if (InactiveSelectionMessages.Count > 0)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    @foreach (var message in InactiveSelectionMessages)
+                    {
+                        <div>@message</div>
+                    }
+                </MudAlert>
+            }
+
+            <MudCard Outlined="true" Class="surface-card">
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <div>
+                            <MudText Typo="Typo.subtitle1">Grunddaten</MudText>
+                            <MudText Typo="Typo.body2">Titel, Beschreibung und sichtbarer Hinweis im Kundenbereich.</MudText>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="Model.Title"
+                                              Label="Kurstitel"
+                                              Disabled="@IsBusy"
+                                              Required="true"
+                                              RequiredError="Bitte einen Kurstitel eingeben." />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="Model.Description"
+                                              Label="Beschreibung für Kunden"
+                                              Lines="4"
+                                              Disabled="@IsBusy"
+                                              Required="true"
+                                              RequiredError="Bitte eine Beschreibung eingeben." />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="Model.CustomerNotice"
+                                              Label="Hinweis im Kundenbereich"
+                                              Disabled="@IsBusy"
+                                              Lines="2" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Outlined="true" Class="surface-card">
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <div class="page-header">
+                            <div>
+                                <MudText Typo="Typo.subtitle1">Zuordnung</MudText>
+                                <MudText Typo="Typo.body2">Bereich und Unterkategorie werden fachlich zusammen geprüft.</MudText>
+                            </div>
+                            <MudStack Row="true" Spacing="1" Class="inline-actions">
+                                <MudButton Variant="Variant.Text" Href="/admin/catalog?tab=courseTypes">Unterkategorien pflegen</MudButton>
+                                <MudButton Variant="Variant.Text" Href="/admin/catalog?tab=categories">Bereiche pflegen</MudButton>
+                            </MudStack>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="Guid"
+                                           Label="Bereich"
+                                           Value="@Model.CourseCategoryId"
+                                           ValueChanged="OnCategoryChanged"
+                                           Disabled="@IsBusy"
+                                           ToStringFunc="FormatCategory"
+                                           Required="true"
+                                           RequiredError="Bitte einen Bereich auswählen.">
+                                    @foreach (var item in Data.Categories)
+                                    {
+                                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="Guid"
+                                           Label="Unterkategorie"
+                                           @bind-Value="Model.CourseTypeId"
+                                           Disabled="@(IsBusy || !AvailableCourseTypes.Any())"
+                                           ToStringFunc="FormatCourseType"
+                                           Required="true"
+                                           RequiredError="Bitte eine Unterkategorie auswählen.">
+                                    @foreach (var item in AvailableCourseTypes)
+                                    {
+                                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="Guid"
+                                           Label="Ort / Bad"
+                                           @bind-Value="Model.VenueId"
+                                           Disabled="@IsBusy"
+                                           ToStringFunc="FormatVenue"
+                                           Required="true"
+                                           RequiredError="Bitte einen Ort auswählen.">
+                                    @foreach (var item in Data.Venues)
+                                    {
+                                        <MudSelectItem T="Guid" Value="@item.Id">@BuildLookupLabel(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudText Typo="Typo.caption" Class="helper-link">
+                                    <MudLink Href="/admin/catalog?tab=venues">Ort oder Bad fehlt? In Stammdaten anlegen.</MudLink>
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="Guid?"
+                                           Label="Turnus"
+                                           @bind-Value="Model.CourseCycleId"
+                                           Disabled="@IsBusy"
+                                           ToStringFunc="FormatCycle">
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Kein Turnus</MudSelectItem>
+                                    @foreach (var item in Data.Cycles)
+                                    {
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudText Typo="Typo.caption" Class="helper-link">
+                                    <MudLink Href="/admin/catalog?tab=cycles">Turnus fehlt? In Stammdaten anlegen.</MudLink>
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="Guid?"
+                                           Label="Altersregel"
+                                           @bind-Value="Model.AgeRuleId"
+                                           Disabled="@IsBusy"
+                                           ToStringFunc="FormatAgeRule">
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Keine Regel</MudSelectItem>
+                                    @foreach (var item in Data.AgeRules)
+                                    {
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudText Typo="Typo.caption" Class="helper-link">
+                                    <MudLink Href="/admin/catalog?tab=ageRules">Altersregel fehlt? In Stammdaten anlegen.</MudLink>
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="Guid?"
+                                           Label="Kursleitung"
+                                           @bind-Value="Model.CourseInstructorId"
+                                           Disabled="@IsBusy"
+                                           ToStringFunc="FormatInstructor"
+                                           Required="true"
+                                           RequiredError="Bitte eine Kursleitung auswählen.">
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Bitte wählen</MudSelectItem>
+                                    @foreach (var item in Data.Instructors)
+                                    {
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@BuildLookupLabel(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudText Typo="Typo.caption" Class="helper-link">
+                                    <MudLink Href="/admin/catalog?tab=instructors">Kursleitung fehlt? In Stammdaten anlegen.</MudLink>
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Outlined="true" Class="surface-card">
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <div>
+                            <MudText Typo="Typo.subtitle1">Organisatorische Daten</MudText>
+                            <MudText Typo="Typo.body2">Zeit, Zeitraum, Preis und Kapazität des Kurses.</MudText>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" md="4">
+                                <MudDatePicker Label="Startdatum"
+                                               @bind-Date="_startDate"
+                                               Disabled="@IsBusy"
+                                               Required="true"
+                                               RequiredError="Bitte ein Startdatum auswählen." />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudDatePicker Label="Enddatum"
+                                               @bind-Date="_endDate"
+                                               Disabled="@IsBusy"
+                                               Required="true"
+                                               RequiredError="Bitte ein Enddatum auswählen." />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="DayOfWeek" Label="Wochentag" @bind-Value="Model.DayOfWeek" Disabled="@IsBusy">
+                                    @foreach (var day in Enum.GetValues<DayOfWeek>())
+                                    {
+                                        <MudSelectItem T="DayOfWeek" Value="@day">@UiLabels.Day(day)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTimePicker Label="Startzeit"
+                                               @bind-Time="_startTime"
+                                               Disabled="@IsBusy"
+                                               Required="true"
+                                               RequiredError="Bitte eine Startzeit auswählen." />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTimePicker Label="Endzeit"
+                                               @bind-Time="_endTime"
+                                               Disabled="@IsBusy"
+                                               Required="true"
+                                               RequiredError="Bitte eine Endzeit auswählen." />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudNumericField T="int"
+                                                 @bind-Value="Model.Capacity"
+                                                 Label="Plätze"
+                                                 Min="1"
+                                                 Disabled="@IsBusy"
+                                                 Required="true"
+                                                 RequiredError="Bitte die Anzahl der Plätze angeben." />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudNumericField T="decimal"
+                                                 @bind-Value="Model.Price"
+                                                 Label="Preis in Euro"
+                                                 Disabled="@IsBusy"
+                                                 Min="0" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Outlined="true" Class="surface-card">
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <div>
+                            <MudText Typo="Typo.subtitle1">Sichtbarkeit und Buchung</MudText>
+                            <MudText Typo="Typo.body2">Steuert, ob der Kurs intern angefragt oder extern weitergeleitet wird.</MudText>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="CourseOfferingStatus" Label="Status" @bind-Value="Model.Status" Disabled="@IsBusy">
+                                    @foreach (var item in Enum.GetValues<CourseOfferingStatus>())
+                                    {
+                                        <MudSelectItem T="CourseOfferingStatus" Value="@item">@UiLabels.CourseStatus(item)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="CourseRegistrationMode" Label="Buchungsart" @bind-Value="Model.RegistrationMode" Disabled="@IsBusy">
+                                    <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.Internal">Intern</MudSelectItem>
+                                    <MudSelectItem T="CourseRegistrationMode" Value="@CourseRegistrationMode.External">Extern</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="Model.ExternalRegistrationUrl"
+                                              Label="Externer Buchungslink"
+                                              InputType="InputType.Url"
+                                              Disabled="@(IsBusy || Model.RegistrationMode == CourseRegistrationMode.Internal)"
+                                              Required="@(Model.RegistrationMode == CourseRegistrationMode.External)"
+                                              RequiredError="Bitte einen externen Buchungslink angeben." />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudSwitch T="bool" @bind-Value="Model.AllowWaitlistWhenFull" Color="Color.Primary" Disabled="@IsBusy">
+                                    Warteliste erlauben, wenn intern kein Platz mehr frei ist
+                                </MudSwitch>
+                            </MudItem>
+                        </MudGrid>
+
+                        @if (Model.RegistrationMode == CourseRegistrationMode.External)
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">
+                                Externe Kurse brauchen einen Buchungslink. Interne Plätze dienen dann nur zur Übersicht.
+                            </MudAlert>
+                        }
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <MudStack Row="true" Spacing="2" Class="inline-actions">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@(IsBusy || !CanSubmit)"
+                           OnClick="SubmitAsync">
+                    @PrimaryActionText
+                </MudButton>
+                @if (ShowResetAction)
+                {
+                    <MudButton Variant="Variant.Text" Disabled="@IsBusy" OnClick="ResetAsync">@SecondaryActionText</MudButton>
+                }
+            </MudStack>
+        </MudStack>
+    </MudForm>
 </MudPaper>
 
 @code {
@@ -223,6 +346,7 @@
     private DateTime? _endDate;
     private TimeSpan? _startTime;
     private TimeSpan? _endTime;
+    private MudForm? _form;
     private CourseUpsertRequest? _syncedModel;
 
     private IReadOnlyList<CategorizedLookupItemDto> AvailableCourseTypes => Data.CourseTypes
@@ -308,6 +432,15 @@
 
     private async Task SubmitAsync()
     {
+        if (_form is not null)
+        {
+            await _form.ValidateAsync();
+            if (!_form.IsValid)
+            {
+                return;
+            }
+        }
+
         Model.StartDate = _startDate.HasValue ? DateOnly.FromDateTime(_startDate.Value) : null;
         Model.EndDate = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : null;
         Model.StartTime = _startTime.HasValue ? TimeOnly.FromTimeSpan(_startTime.Value) : null;
@@ -372,6 +505,24 @@
 
     private static string BuildLookupLabel(CategorizedLookupItemDto item)
         => string.IsNullOrWhiteSpace(item.SecondaryLabel) ? item.Label : $"{item.Label} ({item.SecondaryLabel})";
+
+    private string FormatCategory(Guid value)
+        => Data.Categories.FirstOrDefault(x => x.Id == value)?.Label ?? string.Empty;
+
+    private string FormatCourseType(Guid value)
+        => Data.CourseTypes.FirstOrDefault(x => x.Id == value)?.Label ?? string.Empty;
+
+    private string FormatVenue(Guid value)
+        => Data.Venues.FirstOrDefault(x => x.Id == value)?.Label ?? string.Empty;
+
+    private string FormatCycle(Guid? value)
+        => !value.HasValue ? string.Empty : (Data.Cycles.FirstOrDefault(x => x.Id == value.Value)?.Label ?? string.Empty);
+
+    private string FormatAgeRule(Guid? value)
+        => !value.HasValue ? string.Empty : (Data.AgeRules.FirstOrDefault(x => x.Id == value.Value)?.Label ?? string.Empty);
+
+    private string FormatInstructor(Guid? value)
+        => !value.HasValue ? string.Empty : (Data.Instructors.FirstOrDefault(x => x.Id == value.Value)?.Label ?? string.Empty);
 
     private static void AddInactiveMessage(ICollection<string> messages, LookupItemDto? item, string message)
     {

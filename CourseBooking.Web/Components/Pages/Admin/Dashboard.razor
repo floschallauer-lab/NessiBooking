@@ -35,7 +35,7 @@
 
             <MudGrid>
                 <MudItem xs="12" md="4">
-                    <MudSelect T="Guid?" Label="Bereich" Value="@_categoryId" ValueChanged="OnCategoryChanged">
+                    <MudSelect T="Guid?" Label="Bereich" Value="@_categoryId" ValueChanged="OnCategoryChanged" ToStringFunc="FormatCategory">
                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Bereiche</MudSelectItem>
                         @foreach (var item in _summary.Categories)
                         {
@@ -44,7 +44,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_courseTypeId" Disabled="@(!AvailableCourseTypes.Any())">
+                    <MudSelect T="Guid?" Label="Unterkategorie" @bind-Value="_courseTypeId" Disabled="@(!AvailableCourseTypes.Any())" ToStringFunc="FormatCourseType">
                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Unterkategorien</MudSelectItem>
                         @foreach (var item in AvailableCourseTypes)
                         {
@@ -53,7 +53,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudSelect T="Guid?" Label="Ort / Bad" @bind-Value="_venueId">
+                    <MudSelect T="Guid?" Label="Ort / Bad" @bind-Value="_venueId" ToStringFunc="FormatVenue">
                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Orte</MudSelectItem>
                         @foreach (var item in _summary.Venues)
                         {
@@ -62,7 +62,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId">
+                    <MudSelect T="Guid?" Label="Turnus" @bind-Value="_cycleId" ToStringFunc="FormatCycle">
                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">Alle Turnusse</MudSelectItem>
                         @foreach (var item in _summary.Cycles)
                         {
@@ -204,7 +204,12 @@
                     <MudButton Variant="Variant.Text" Href="/admin/courses">Zur Kursverwaltung</MudButton>
                 </div>
 
-                <MudTable Items="_summary.CoursesNeedingAttention" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                <MudTable Items="_summary.CoursesNeedingAttention"
+                          Class="dashboard-table"
+                          Hover="true"
+                          Dense="false"
+                          Breakpoint="Breakpoint.Sm"
+                          HorizontalScrollbar="true">
                     <HeaderContent>
                         <MudTh>Kurs</MudTh>
                         <MudTh>Ort</MudTh>
@@ -251,7 +256,12 @@
                     <MudButton Variant="Variant.Text" Href="/admin/courses">Alle Kurse</MudButton>
                 </div>
 
-                <MudTable Items="_summary.RecentCourses" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                <MudTable Items="_summary.RecentCourses"
+                          Class="dashboard-table"
+                          Hover="true"
+                          Dense="false"
+                          Breakpoint="Breakpoint.Sm"
+                          HorizontalScrollbar="true">
                     <HeaderContent>
                         <MudTh>Kurs</MudTh>
                         <MudTh>Bereich</MudTh>
@@ -285,7 +295,12 @@
                     <MudButton Variant="Variant.Text" Href="/admin/registrations">Alle Anmeldungen</MudButton>
                 </div>
 
-                <MudTable Items="_summary.RecentRegistrations" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+                <MudTable Items="_summary.RecentRegistrations"
+                          Class="dashboard-table"
+                          Hover="true"
+                          Dense="false"
+                          Breakpoint="Breakpoint.Sm"
+                          HorizontalScrollbar="true">
                     <HeaderContent>
                         <MudTh>Eingang</MudTh>
                         <MudTh>Familie</MudTh>
@@ -360,4 +375,17 @@
         var percentage = row.Total <= 0 ? 0 : Math.Clamp((row.Value * 100d) / row.Total, 0, 100);
         return $"width:{percentage.ToString("F1", CultureInfo.InvariantCulture)}%";
     }
+
+    private string FormatCategory(Guid? id) => FormatLookupLabel(id, _summary?.Categories);
+
+    private string FormatCourseType(Guid? id) => id.HasValue
+        ? (_summary?.CourseTypes.FirstOrDefault(x => x.Id == id.Value)?.Label ?? string.Empty)
+        : string.Empty;
+
+    private string FormatVenue(Guid? id) => FormatLookupLabel(id, _summary?.Venues);
+
+    private string FormatCycle(Guid? id) => FormatLookupLabel(id, _summary?.Cycles);
+
+    private static string FormatLookupLabel(Guid? id, IEnumerable<LookupItemDto>? items)
+        => !id.HasValue ? string.Empty : (items?.FirstOrDefault(x => x.Id == id.Value)?.Label ?? string.Empty);
 }

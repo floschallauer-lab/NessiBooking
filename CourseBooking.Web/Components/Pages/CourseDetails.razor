@@ -31,63 +31,77 @@ else
             </div>
         </div>
 
-        <div class="detail-grid">
-            <MudPaper Class="pa-4 surface-card" Elevation="0">
-                <MudText Typo="Typo.h6">Kursbeschreibung</MudText>
-                <MudText Typo="Typo.body1">@(!string.IsNullOrWhiteSpace(_course.Description) ? _course.Description : "Für diesen Kurs ist noch keine Beschreibung hinterlegt.")</MudText>
+        <MudGrid Spacing="3">
+            <MudItem xs="12" lg="7">
+                <MudPaper Class="pa-4 surface-card" Elevation="0">
+                    <MudStack Spacing="3">
+                        <div>
+                            <MudText Typo="Typo.h6">Kursbeschreibung</MudText>
+                            <MudText Typo="Typo.body1">@(!string.IsNullOrWhiteSpace(_course.Description) ? _course.Description : "Für diesen Kurs ist noch keine Beschreibung hinterlegt.")</MudText>
+                        </div>
 
-                <MudDivider Class="my-4" />
+                        <MudDivider />
 
-                <MudText Typo="Typo.h6">Wichtige Daten</MudText>
-                <div class="catalog-meta mt-3">
-                    <MudText Typo="Typo.body2">Ort: @GetVenueAddress(_course)</MudText>
-                    <MudText Typo="Typo.body2">Tag: @_course.DayLabel</MudText>
-                    <MudText Typo="Typo.body2">Uhrzeit: @_course.TimeLabel</MudText>
-                    <MudText Typo="Typo.body2">Zeitraum: @_course.PeriodLabel</MudText>
-                    <MudText Typo="Typo.body2">Turnus: @(_course.Cycle ?? "flexibel")</MudText>
-                    @if (!string.IsNullOrWhiteSpace(_course.InstructorName))
-                    {
-                        <MudText Typo="Typo.body2">Kursleitung: @_course.InstructorName</MudText>
-                    }
-                    <MudText Typo="Typo.body2">Alter: @_course.AgeLabel</MudText>
-                    <MudText Typo="Typo.body2">Preis: @GetPriceLabel(_course)</MudText>
-                </div>
-            </MudPaper>
+                        <div>
+                            <MudText Typo="Typo.h6">Wichtige Daten</MudText>
+                            <MudStack Spacing="1" Class="mt-3">
+                                <MudText Typo="Typo.body2">Ort: @GetVenueAddress(_course)</MudText>
+                                <MudText Typo="Typo.body2">Tag: @_course.DayLabel</MudText>
+                                <MudText Typo="Typo.body2">Uhrzeit: @_course.TimeLabel</MudText>
+                                <MudText Typo="Typo.body2">Zeitraum: @_course.PeriodLabel</MudText>
+                                <MudText Typo="Typo.body2">Turnus: @(_course.Cycle ?? "flexibel")</MudText>
+                                @if (!string.IsNullOrWhiteSpace(_course.InstructorName))
+                                {
+                                    <MudText Typo="Typo.body2">Kursleitung: @_course.InstructorName</MudText>
+                                }
+                                <MudText Typo="Typo.body2">Alter: @_course.AgeLabel</MudText>
+                                <MudText Typo="Typo.body2">Preis: @GetPriceLabel(_course)</MudText>
+                            </MudStack>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
 
-            <MudPaper Class="pa-4 surface-card" Elevation="0">
-                <MudText Typo="Typo.h6">Anmeldung</MudText>
-                <MudText Typo="Typo.body2">@GetAvailabilityLabel(_course)</MudText>
+            <MudItem xs="12" lg="5">
+                <MudPaper Class="pa-4 surface-card" Elevation="0">
+                    <MudStack Spacing="3">
+                        <div>
+                            <MudText Typo="Typo.h6">Anmeldung</MudText>
+                            <MudText Typo="Typo.body2">@GetAvailabilityLabel(_course)</MudText>
+                        </div>
 
-                @if (!string.IsNullOrWhiteSpace(_course.CustomerNotice))
-                {
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_course.CustomerNotice</MudAlert>
-                }
+                        @if (!string.IsNullOrWhiteSpace(_course.CustomerNotice))
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">@_course.CustomerNotice</MudAlert>
+                        }
 
-                <div class="catalog-chip-row mt-4">
-                    <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined">@GetPriceLabel(_course)</MudChip>
-                    @if (_course.RegistrationMode == CourseRegistrationMode.Internal)
-                    {
-                        <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined">@($"{Math.Max(_course.SeatsRemaining, 0)} freie Plätze")</MudChip>
-                    }
-                </div>
+                        <MudStack Row="true" Spacing="1" Class="catalog-chip-row">
+                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined">@GetPriceLabel(_course)</MudChip>
+                            @if (_course.RegistrationMode == CourseRegistrationMode.Internal)
+                            {
+                                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined">@($"{Math.Max(_course.SeatsRemaining, 0)} freie Plätze")</MudChip>
+                            }
+                        </MudStack>
 
-                <div class="inline-actions mt-4">
-                    @if (_course.IsPubliclyBookable)
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={_course.Id}")">Intern anfragen</MudButton>
-                    }
-                    else if (_course.RegistrationMode == CourseRegistrationMode.External && !string.IsNullOrWhiteSpace(_course.ExternalRegistrationUrl))
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="@_course.ExternalRegistrationUrl" Target="_blank">Externe Anmeldung</MudButton>
-                    }
-                    else if (_course.RegistrationMode == CourseRegistrationMode.External)
-                    {
-                        <MudButton Variant="Variant.Outlined" Disabled="true">Externer Link fehlt</MudButton>
-                    }
-                    <MudButton Variant="Variant.Text" Href="/">Zur Kursliste</MudButton>
-                </div>
-            </MudPaper>
-        </div>
+                        <MudStack Row="true" Spacing="2" Class="inline-actions">
+                            @if (_course.IsPubliclyBookable)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/register?courseId={_course.Id}")">Intern anfragen</MudButton>
+                            }
+                            else if (_course.RegistrationMode == CourseRegistrationMode.External && !string.IsNullOrWhiteSpace(_course.ExternalRegistrationUrl))
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="@_course.ExternalRegistrationUrl" Target="_blank">Externe Anmeldung</MudButton>
+                            }
+                            else if (_course.RegistrationMode == CourseRegistrationMode.External)
+                            {
+                                <MudButton Variant="Variant.Outlined" Disabled="true">Externer Link fehlt</MudButton>
+                            }
+                            <MudButton Variant="Variant.Text" Href="/">Zur Kursliste</MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
     </section>
 }
 

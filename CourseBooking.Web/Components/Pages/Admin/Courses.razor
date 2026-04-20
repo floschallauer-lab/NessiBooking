@@ -138,7 +138,12 @@
                 <MudButton Variant="Variant.Outlined" Href="/admin/courses/new">Neueingabe öffnen</MudButton>
             </div>
 
-            <MudTable Items="FilteredCourses" Hover="true" Dense="false" Breakpoint="Breakpoint.Sm">
+            <MudTable Items="FilteredCourses"
+                      Class="admin-list-table"
+                      Hover="true"
+                      Dense="false"
+                      Breakpoint="Breakpoint.Sm"
+                      HorizontalScrollbar="true">
                 <HeaderContent>
                     <MudTh>Kurs</MudTh>
                     <MudTh>Termin</MudTh>
