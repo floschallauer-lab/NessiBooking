@@ -1,26 +1,45 @@
 @inject NavigationManager NavigationManager
 
-<nav class="admin-nav-grid" aria-label="Admin-Hauptbereiche">
+<MudGrid Spacing="2" Class="mb-4" aria-label="Admin-Hauptbereiche">
     @foreach (var item in Items)
     {
-        <a class="admin-nav-card @(IsActive(item) ? "is-active" : string.Empty)" href="@item.Href">
-            <span class="admin-nav-card-title">@item.Title</span>
-            <small>@item.Description</small>
-        </a>
+        var isActive = IsActive(item);
+
+        <MudItem xs="12" sm="6" lg="4" xl="2">
+            <MudCard Outlined="true" Class="@BuildCardClass(isActive)">
+                <MudCardContent Class="pb-0">
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@item.Icon" Color="@(isActive ? Color.Primary : Color.Default)" />
+                            <MudText Typo="Typo.subtitle1">@item.Title</MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.body2">@item.Description</MudText>
+                    </MudStack>
+                </MudCardContent>
+                <MudCardActions Class="pt-2">
+                    <MudButton Variant="@(isActive ? Variant.Filled : Variant.Text)"
+                               Color="Color.Primary"
+                               Href="@item.Href"
+                               FullWidth="true">
+                        @(isActive ? "Aktuell geöffnet" : "Öffnen")
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
     }
-</nav>
+</MudGrid>
 
 @code {
     private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Trim('/');
 
     private static readonly IReadOnlyList<AdminNavItem> Items =
     [
-        new("/admin", "Dashboard", "Übersicht, Kennzahlen und offene Aufgaben"),
-        new("/admin/courses", "Kurse", "Bestehende Kurse suchen, prüfen und bearbeiten"),
-        new("/admin/courses/new", "Neueingabe Kurs", "Neuen Kurs Schritt für Schritt anlegen"),
-        new("/admin/catalog", "Stammdaten", "Bereiche, Unterkategorien, Orte und Vorlagen pflegen"),
-        new("/admin/registrations", "Anfragen", "Anmeldungen prüfen und Status pflegen"),
-        new("/admin/templates", "Inhalte / Einstellungen", "Mailtexte und feste Hinweise verwalten")
+        new("/admin", "Dashboard", "Übersicht, Kennzahlen und offene Aufgaben", Icons.Material.Filled.SpaceDashboard),
+        new("/admin/courses", "Kurse", "Bestehende Kurse suchen, prüfen und bearbeiten", Icons.Material.Filled.ViewList),
+        new("/admin/courses/new", "Neueingabe Kurs", "Neuen Kurs Schritt für Schritt anlegen", Icons.Material.Filled.AddCircleOutline),
+        new("/admin/catalog", "Stammdaten", "Bereiche, Unterkategorien, Orte und Vorlagen pflegen", Icons.Material.Filled.Tune),
+        new("/admin/registrations", "Anfragen", "Anmeldungen prüfen und Status pflegen", Icons.Material.Filled.MarkEmailRead),
+        new("/admin/templates", "Inhalte / Einstellungen", "Mailtexte und feste Hinweise verwalten", Icons.Material.Filled.Settings)
     ];
 
     private bool IsActive(AdminNavItem item)
@@ -40,5 +59,8 @@
         return CurrentPath.StartsWith(item.Href, StringComparison.OrdinalIgnoreCase);
     }
 
-    private sealed record AdminNavItem(string Href, string Title, string Description);
+    private static string BuildCardClass(bool isActive)
+        => isActive ? "admin-nav-tile is-active" : "admin-nav-tile";
+
+    private sealed record AdminNavItem(string Href, string Title, string Description, string Icon);
 }
